@@ -72,7 +72,7 @@
 				
 				<option value="file8">github.com/TF2Stadium/Helen/models/player_decorators.go (13.6%)</option>
 				
-				<option value="file9">github.com/TF2Stadium/Helen/models/rpc.go (6.9%)</option>
+				<option value="file9">github.com/TF2Stadium/Helen/models/rpc.go (6.1%)</option>
 				
 				<option value="file10">github.com/TF2Stadium/Helen/models/rpcFumble.go (5.5%)</option>
 				
@@ -131,29 +131,33 @@ import (
         "time"
 
         db "github.com/TF2Stadium/Helen/database"
-        "github.com/TF2Stadium/Helen/helpers"
 )
 
+// ChatMessage Represents a chat mesasge sent by a particular player
 type ChatMessage struct {
+        // Message ID
         ID        uint      `json:"id"`
         CreatedAt time.Time `json:"-"`
 
+        // Because the frontend needs the unix timestamp for the message. Not stored in the DB
         Timestamp int64 `sql:"-" json:"timestamp"`
 
-        PlayerID uint          `json:"-"`
-        Player   PlayerSummary `json:"player" sql:"-"`
+        // ID of the player who sent the message
+        PlayerID uint `json:"-"`
+        // Not in the DB, used by frontend to retrieve player information
+        Player PlayerSummary `json:"player" sql:"-"`
 
-        Room    int    `json:"room"`
+        // Room to which the message was sent
+        Room int `json:"room"`
+        // The actual Message, limited to 120 characters
         Message string `json:"message" sql:"type:varchar(120)"`
-        Deleted bool   `json:"-"`
+        // True if the message has been deleted by a moderator
+        Deleted bool `json:"-"`
 }
 
-func NewChatMessage(message string, room int, player *Player) (*ChatMessage, *helpers.TPError) <span class="cov8" title="1">{
-        if banned, _ := player.IsBannedWithTime(PlayerBanChat); banned </span><span class="cov0" title="0">{
-                return nil, helpers.NewTPError("Player has been chat-banned.", 2)
-        }</span>
-
-        <span class="cov8" title="1">record := &amp;ChatMessage{
+// Return a new ChatMessage sent from specficied player
+func NewChatMessage(message string, room int, player *Player) *ChatMessage <span class="cov8" title="1">{
+        record := &amp;ChatMessage{
                 Timestamp: time.Now().Unix(),
 
                 PlayerID: player.ID,
@@ -163,9 +167,10 @@ func NewChatMessage(message string, room int, player *Player) (*ChatMessage, *he
                 Message: message,
         }
 
-        return record, nil</span>
-}
+        return record
+}</span>
 
+// Return a list of ChatMessages spoken in room
 func GetRoomMessages(room int) ([]*ChatMessage, error) <span class="cov8" title="1">{
         var messages []*ChatMessage
 
@@ -174,7 +179,7 @@ func GetRoomMessages(room int) ([]*ChatMessage, error) <span class="cov8" title=
         return messages, err
 }</span>
 
-//Get all messages sent by player in a specfified room
+// Return all messages sent by player to room
 func GetPlayerMessages(player *Player) ([]*ChatMessage, error) <span class="cov8" title="1">{
         var messages []*ChatMessage
 
@@ -184,6 +189,7 @@ func GetPlayerMessages(player *Player) ([]*ChatMessage, error) <span class="cov8
 
 }</span>
 
+// Get a list of last 20 messages sent to room, used by frontend for displaying the chat history/scrollback
 func GetScrollback(room int) ([]*ChatMessage, error) <span class="cov0" title="0">{
         var messages []*ChatMessage
 
@@ -209,83 +215,94 @@ import (
         "github.com/TF2Stadium/Helen/helpers"
 )
 
-var teamMap = map[string]int{"red": 0, "blu": 1}
-var teamList = []string{"red", "blu"}
+var (
+        teamMap  = map[string]int{"red": 0, "blu": 1}
+        teamList = []string{"red", "blu"}
 
-var sixesClassMap = map[string]int{
-        "scout1":  0,
-        "scout2":  1,
-        "roamer":  2,
-        "pocket":  3,
-        "demoman": 4,
-        "medic":   5,
-}
-var sixesClassList = []string{"scout1", "scout2", "roamer", "pocket", "demoman", "medic"}
+        sixesClassMap = map[string]int{
+                "scout1":  0,
+                "scout2":  1,
+                "roamer":  2,
+                "pocket":  3,
+                "demoman": 4,
+                "medic":   5,
+        }
+        sixesClassList = []string{"scout1", "scout2", "roamer", "pocket", "demoman", "medic"}
 
-var hlClassMap = map[string]int{
-        "scout":    0,
-        "soldier":  1,
-        "pyro":     2,
-        "demoman":  3,
-        "heavy":    4,
-        "engineer": 5,
-        "medic":    6,
-        "sniper":   7,
-        "spy":      8,
-}
-var hlClassList = []string{"scout", "soldier", "pyro", "demoman", "heavy", "engineer", "medic", "sniper", "spy"}
+        hlClassMap = map[string]int{
+                "scout":    0,
+                "soldier":  1,
+                "pyro":     2,
+                "demoman":  3,
+                "heavy":    4,
+                "engineer": 5,
+                "medic":    6,
+                "sniper":   7,
+                "spy":      8,
+        }
+        hlClassList = []string{
+                "scout",
+                "soldier",
+                "pyro",
+                "demoman",
+                "heavy",
+                "engineer",
+                "medic",
+                "sniper",
+                "spy"}
 
-var debugClassMap = map[string]int{
-        "scout": 0,
-}
-var debugClassList = []string{"scout"}
+        debugClassMap = map[string]int{
+                "scout": 0,
+        }
+        debugClassList = []string{"scout"}
 
-var bballClassMap = map[string]int{
-        "soldier1": 0,
-        "soldier2": 1,
-}
-var bballClassList = []string{"soldier1", "soldier2"}
+        bballClassMap = map[string]int{
+                "soldier1": 0,
+                "soldier2": 1,
+        }
+        bballClassList = []string{"soldier1", "soldier2"}
 
-var ultiduoClassMap = map[string]int{
-        "soldier": 0,
-        "medic":   1,
-}
-var ultiduoClassList = []string{"soldier", "medic"}
+        ultiduoClassMap = map[string]int{
+                "soldier": 0,
+                "medic":   1,
+        }
+        ultiduoClassList = []string{"soldier", "medic"}
 
-var foursClassMap = map[string]int{
-        "scout":   0,
-        "soldier": 1,
-        "demoman": 2,
-        "medic":   3,
-}
-var foursClassList = []string{"scout", "soldier", "demoman", "medic"}
+        foursClassMap = map[string]int{
+                "scout":   0,
+                "soldier": 1,
+                "demoman": 2,
+                "medic":   3,
+        }
+        foursClassList = []string{"scout", "soldier", "demoman", "medic"}
 
-var TypeClassMap = map[LobbyType]map[string]int{
-        LobbyTypeHighlander: hlClassMap,
-        LobbyTypeSixes:      sixesClassMap,
-        LobbyTypeFours:      foursClassMap,
-        LobbyTypeUltiduo:    ultiduoClassMap,
-        LobbyTypeBball:      bballClassMap,
-        LobbyTypeDebug:      debugClassMap,
-}
+        typeClassMap = map[LobbyType]map[string]int{
+                LobbyTypeHighlander: hlClassMap,
+                LobbyTypeSixes:      sixesClassMap,
+                LobbyTypeFours:      foursClassMap,
+                LobbyTypeUltiduo:    ultiduoClassMap,
+                LobbyTypeBball:      bballClassMap,
+                LobbyTypeDebug:      debugClassMap,
+        }
 
-var TypeClassList = map[LobbyType][]string{
-        LobbyTypeHighlander: hlClassList,
-        LobbyTypeSixes:      sixesClassList,
-        LobbyTypeFours:      foursClassList,
-        LobbyTypeUltiduo:    ultiduoClassList,
-        LobbyTypeBball:      bballClassList,
-        LobbyTypeDebug:      debugClassList,
-}
+        typeClassList = map[LobbyType][]string{
+                LobbyTypeHighlander: hlClassList,
+                LobbyTypeSixes:      sixesClassList,
+                LobbyTypeFours:      foursClassList,
+                LobbyTypeUltiduo:    ultiduoClassList,
+                LobbyTypeBball:      bballClassList,
+                LobbyTypeDebug:      debugClassList,
+        }
 
-var NumberOfClassesMap = map[LobbyType]int{
-        LobbyTypeHighlander: 9,
-        LobbyTypeSixes:      6,
-        LobbyTypeFours:      4,
-        LobbyTypeUltiduo:    2,
-        LobbyTypeBball:      2,
-        LobbyTypeDebug:      1,
-}
+        NumberOfClassesMap = map[LobbyType]int{
+                LobbyTypeHighlander: 9,
+                LobbyTypeSixes:      6,
+                LobbyTypeFours:      4,
+                LobbyTypeUltiduo:    2,
+                LobbyTypeBball:      2,
+                LobbyTypeDebug:      1,
+        }
+)
 
 func LobbyGetPlayerSlot(lobbytype LobbyType, teamStr string, classStr string) (int, *helpers.TPError) <span class="cov8" title="1">{
         team, ok := teamMap[teamStr]
@@ -293,7 +310,7 @@ func LobbyGetPlayerSlot(lobbytype LobbyType, teamStr string, classStr string) (i
                 return -1, helpers.NewTPError("Invalid team", -1)
         }</span>
 
-        <span class="cov8" title="1">class, ok := TypeClassMap[lobbytype][classStr]
+        <span class="cov8" title="1">class, ok := typeClassMap[lobbytype][classStr]
         if !ok </span><span class="cov8" title="1">{
                 return -1, helpers.NewTPError("Invalid class", -1)
         }</span>
@@ -302,7 +319,7 @@ func LobbyGetPlayerSlot(lobbytype LobbyType, teamStr string, classStr string) (i
 }
 
 func LobbyGetSlotInfoString(lobbytype LobbyType, slot int) (string, string, *helpers.TPError) <span class="cov0" title="0">{
-        classList := TypeClassList[lobbytype]
+        classList := typeClassList[lobbytype]
 
         team, class, err := LobbyGetSlotInfo(lobbytype, slot)
         if err == nil </span><span class="cov0" title="0">{
@@ -312,7 +329,7 @@ func LobbyGetSlotInfoString(lobbytype LobbyType, slot int) (string, string, *hel
 }
 
 func LobbyGetSlotInfo(lobbytype LobbyType, slot int) (int, int, *helpers.TPError) <span class="cov0" title="0">{
-        classList := TypeClassList[lobbytype]
+        classList := typeClassList[lobbytype]
 
         if slot &lt; len(classList) </span><span class="cov0" title="0">{
                 return 0, slot, nil
@@ -353,9 +370,7 @@ const (
         LobbyTypeUltiduo    LobbyType = 3
         LobbyTypeBball      LobbyType = 2
         LobbyTypeDebug      LobbyType = 1
-)
 
-const (
         LobbyStateInitializing LobbyState = 0
         LobbyStateWaiting      LobbyState = 1
         LobbyStateReadyingUp   LobbyState = 2
@@ -363,30 +378,36 @@ const (
         LobbyStateEnded        LobbyState = 5
 )
 
-var stateString = map[LobbyState]string{
-        LobbyStateWaiting:    "Waiting For Players",
-        LobbyStateInProgress: "Lobby in Progress",
-        LobbyStateEnded:      "Lobby Ended",
-}
+var (
+        stateString = map[LobbyState]string{
+                LobbyStateWaiting:    "Waiting For Players",
+                LobbyStateInProgress: "Lobby in Progress",
+                LobbyStateEnded:      "Lobby Ended",
+        }
 
-var FormatMap = map[LobbyType]string{
-        LobbyTypeSixes:      "6s",
-        LobbyTypeHighlander: "Highlander",
-        LobbyTypeFours:      "4v4",
-        LobbyTypeUltiduo:    "Ultiduo",
-        LobbyTypeBball:      "Bball",
-        LobbyTypeDebug:      "Debug",
-}
+        formatMap = map[LobbyType]string{
+                LobbyTypeSixes:      "6s",
+                LobbyTypeHighlander: "Highlander",
+                LobbyTypeFours:      "4v4",
+                LobbyTypeUltiduo:    "Ultiduo",
+                LobbyTypeBball:      "Bball",
+                LobbyTypeDebug:      "Debug",
+        }
+)
 
+// Represents an occupied player slot in a lobby
 type LobbySlot struct {
         ID uint
-        // Lobby    Lobby
+        // ID of the lobby
         LobbyId uint
-        // Player   Player
+        // ID of the player occupying the slot
         PlayerId uint
-        Slot     int
-        Ready    bool
-        InGame   bool
+        // Slot number
+        Slot int
+        // Denotes if the player is ready
+        Ready bool
+        // Denotes if the player is in game
+        InGame bool
 
         Team  string
         Class string
@@ -400,33 +421,47 @@ type ServerRecord struct {
 }
 
 //Given Lobby IDs are unique, we'll use them for mumble channel names
+// Represents a Lobby
 type Lobby struct {
         gorm.Model
-        Mode    string
+        // Game Mode
+        Mode string
+        // Map Name
         MapName string
         State   LobbyState
         Type    LobbyType
-        League  string
+        // League config used
+        League string
 
+        // Region Code ("na", "eu", etc)
         RegionCode string
+        // Region Name ("North America", "Europe", etc)
         RegionName string
 
+        // Whether mumble is required
         Mumble bool
 
+        // List of occupied slots
         Slots []LobbySlot
 
+        // TF2 Server Info
         ServerInfo   ServerRecord
         ServerInfoID uint
 
+        // whitelist.tf ID
         Whitelist int //whitelist.tf ID
 
+        // List of spectators
         Spectators []Player `gorm:"many2many:spectators_players_lobbies"`
 
+        // List of Banned Players
         BannedPlayers []Player `gorm:"many2many:banned_players_lobbies"`
 
+        // SteamID of the lobby leader/creator
         CreatedBySteamID string
 
-        ReadyUpTimestamp int64 //Stores the timestamp at which the ready up timeout started
+        // Timestamp at which the ready up timeout started
+        ReadyUpTimestamp int64
 }
 
 func getGamemode(mapName string, lobbyType LobbyType) string <span class="cov8" title="1">{
@@ -462,6 +497,7 @@ func getGamemode(mapName string, lobbyType LobbyType) string <span class="cov8" 
         <span class="cov0" title="0">return "unknown"</span>
 }
 
+// Returns a new lobby object with the given parameters
 func NewLobby(mapName string, lobbyType LobbyType, league string, serverInfo ServerRecord, whitelist int, mumble bool) *Lobby <span class="cov8" title="1">{
         lobby := &amp;Lobby{
                 Mode:       getGamemode(mapName, lobbyType),
@@ -479,6 +515,7 @@ func NewLobby(mapName string, lobbyType LobbyType, league string, serverInfo Ser
         return lobby
 }</span>
 
+// Given a player, returns the slot object if the player occupies a slot in the lobby
 func (lobby *Lobby) GetPlayerSlotObj(player *Player) (*LobbySlot, error) <span class="cov8" title="1">{
         slotObj := &amp;LobbySlot{}
 
@@ -487,12 +524,14 @@ func (lobby *Lobby) GetPlayerSlotObj(player *Player) (*LobbySlot, error) <span c
         return slotObj, err
 }</span>
 
+// Given a player, returns the slot number if the player occupies a slot int eh lobby
 func (lobby *Lobby) GetPlayerSlot(player *Player) (int, error) <span class="cov8" title="1">{
         slotObj, err := lobby.GetPlayerSlotObj(player)
 
         return slotObj.Slot, err
 }</span>
 
+// Returns the ID of the player occupying the slot number
 func (lobby *Lobby) GetPlayerIdBySlot(slot int) (uint, error) <span class="cov8" title="1">{
         slotObj := &amp;LobbySlot{}
 
@@ -501,6 +540,7 @@ func (lobby *Lobby) GetPlayerIdBySlot(slot int) (uint, error) <span class="cov8"
         return uint(slotObj.PlayerId), err
 }</span>
 
+// Save changes made to lobby object
 func (lobby *Lobby) Save() error <span class="cov8" title="1">{
         var err error
         if db.DB.NewRecord(lobby) </span><span class="cov8" title="1">{
@@ -513,6 +553,7 @@ func (lobby *Lobby) Save() error <span class="cov8" title="1">{
         return err</span>
 }
 
+// Get the lobby object, plus the ServerInfo object inside it
 func GetLobbyByIdServer(id uint) (*Lobby, *helpers.TPError) <span class="cov8" title="1">{
         nonExistentLobby := helpers.NewTPError("Lobby not in the database", -1)
 
@@ -526,6 +567,7 @@ func GetLobbyByIdServer(id uint) (*Lobby, *helpers.TPError) <span class="cov8" t
         <span class="cov8" title="1">return lob, nil</span>
 }
 
+// Get the lobby object, without the ServerInfo object inside it.
 func GetLobbyById(id uint) (*Lobby, *helpers.TPError) <span class="cov8" title="1">{
         nonExistentLobby := helpers.NewTPError("Lobby not in the database", -1)
 
@@ -539,7 +581,9 @@ func GetLobbyById(id uint) (*Lobby, *helpers.TPError) <span class="cov8" title="
         <span class="cov8" title="1">return lob, nil</span>
 }
 
-// //Add player to lobby
+// Add player to lobby.
+// If the player occupies a slot in the lobby already, switch slots
+// If the player is in another lobby, remove them from that lobby before adding them
 func (lobby *Lobby) AddPlayer(player *Player, slot int, team, class string) *helpers.TPError <span class="cov8" title="1">{
         /* Possible errors while joining
          * Slot has been filled
@@ -587,6 +631,7 @@ func (lobby *Lobby) AddPlayer(player *Player, slot int, team, class string) *hel
                 }</span>
         }
 
+        // Check if player is a substitute
         <span class="cov8" title="1">var count int
         db.DB.Table("substitutes").Where("lobby_id = ? AND team = ? AND class = ? AND filled = ?", lobby.ID, team, class, false).Count(&amp;count)
         if count != 0 </span><span class="cov8" title="1">{
@@ -619,6 +664,7 @@ func (lobby *Lobby) AddPlayer(player *Player, slot int, team, class string) *hel
         <span class="cov8" title="1">return nil</span>
 }
 
+// Remove a player from the lobby
 func (lobby *Lobby) RemovePlayer(player *Player) *helpers.TPError <span class="cov8" title="1">{
         err := db.DB.Where("player_id = ? AND lobby_id = ?", player.ID, lobby.ID).Delete(&amp;LobbySlot{}).Error
         if err != nil </span><span class="cov0" title="0">{
@@ -635,6 +681,7 @@ func (lobby *Lobby) BanPlayer(player *Player) <span class="cov8" title="1">{
         db.DB.Model(lobby).Association("BannedPlayers").Append(player)
 }</span>
 
+// Ready up a player, used when lobby.State == LobbyStateWaiting
 func (lobby *Lobby) ReadyPlayer(player *Player) *helpers.TPError <span class="cov8" title="1">{
         err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).UpdateColumn("ready", true).Error
         if err != nil </span><span class="cov0" title="0">{
@@ -644,6 +691,7 @@ func (lobby *Lobby) ReadyPlayer(player *Player) *helpers.TPError <span class="co
         return nil</span>
 }
 
+// Unreadies a player, used when lobby.State == LobbyStateWaiting
 func (lobby *Lobby) UnreadyPlayer(player *Player) *helpers.TPError <span class="cov8" title="1">{
         err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).UpdateColumn("ready", false).Error
         if err != nil </span><span class="cov0" title="0">{
@@ -654,12 +702,14 @@ func (lobby *Lobby) UnreadyPlayer(player *Player) *helpers.TPError <span class="
         return nil</span>
 }
 
+// Removes players which haven't readied up
 func (lobby *Lobby) RemoveUnreadyPlayers() error <span class="cov8" title="1">{
         err := db.DB.Where("lobby_id = ? AND ready = ?", lobby.ID, false).Delete(&amp;LobbySlot{}).Error
         lobby.OnChange(true)
         return err
 }</span>
 
+// Returns true if the player is in-game
 func (lobby *Lobby) IsPlayerInGame(player *Player) (bool, error) <span class="cov8" title="1">{
         var ingame []bool
         err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).Pluck("in_game", &amp;ingame).Error
@@ -670,6 +720,7 @@ func (lobby *Lobby) IsPlayerInGame(player *Player) (bool, error) <span class="co
         <span class="cov8" title="1">return (len(ingame) != 0 &amp;&amp; ingame[0]), err</span>
 }
 
+// Return true if the player is ready
 func (lobby *Lobby) IsPlayerReady(player *Player) (bool, *helpers.TPError) <span class="cov8" title="1">{
         var ready []bool
         err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).Pluck("ready", &amp;ready).Error
@@ -679,6 +730,7 @@ func (lobby *Lobby) IsPlayerReady(player *Player) (bool, *helpers.TPError) <span
         <span class="cov8" title="1">return (len(ready) != 0 &amp;&amp; ready[0]), nil</span>
 }
 
+// Unreadies all players
 func (lobby *Lobby) UnreadyAllPlayers() error <span class="cov8" title="1">{
         err := db.DB.Table("lobby_slots").Where("lobby_id = ?", lobby.ID).UpdateColumn("ready", false).Error
 
@@ -686,10 +738,13 @@ func (lobby *Lobby) UnreadyAllPlayers() error <span class="cov8" title="1">{
         return err
 }</span>
 
+// Returns the amount of time left to ready up before a player is kicked.
+// Used when a player reconnects while lobby.State == LobbyStateReadyingUp and the player isn't ready
 func (lobby *Lobby) ReadyUpTimeLeft() int64 <span class="cov0" title="0">{
         return int64(lobby.ReadyUpTimestamp - time.Now().Unix())
 }</span>
 
+// Returns true if all players have readied up.
 func (lobby *Lobby) IsEveryoneReady() bool <span class="cov8" title="1">{
         readyPlayers := 0
         db.DB.Table("lobby_slots").Where("lobby_id = ? AND ready = ?", lobby.ID, true).Count(&amp;readyPlayers)
@@ -697,6 +752,7 @@ func (lobby *Lobby) IsEveryoneReady() bool <span class="cov8" title="1">{
         return readyPlayers == 2*NumberOfClassesMap[lobby.Type]
 }</span>
 
+// Adds a player as a lobby spectator
 func (lobby *Lobby) AddSpectator(player *Player) *helpers.TPError <span class="cov8" title="1">{
         err := db.DB.Model(lobby).Association("Spectators").Append(player).Error
         if err != nil </span><span class="cov0" title="0">{
@@ -717,6 +773,7 @@ func (lobby *Lobby) RemoveSpectator(player *Player, broadcast bool) *helpers.TPE
         <span class="cov8" title="1">return nil</span>
 }
 
+// Get number of occupeid slots in the lobby
 func (lobby *Lobby) GetPlayerNumber() int <span class="cov8" title="1">{
         count := 0
         err := db.DB.Table("lobby_slots").Where("lobby_id = ?", lobby.ID).Count(&amp;count).Error
@@ -726,10 +783,12 @@ func (lobby *Lobby) GetPlayerNumber() int <span class="cov8" title="1">{
         <span class="cov8" title="1">return count</span>
 }
 
+// Returns true if all lobby spots have been filled
 func (lobby *Lobby) IsFull() bool <span class="cov0" title="0">{
-        return lobby.GetPlayerNumber() &gt;= 2*NumberOfClassesMap[lobby.Type]
+        return lobby.GetPlayerNumber() == 2*NumberOfClassesMap[lobby.Type]
 }</span>
 
+// Returns true if the given slot (by number) is occupied by a player
 func (lobby *Lobby) IsSlotFilled(slot int) bool <span class="cov0" title="0">{
         _, err := lobby.GetPlayerIdBySlot(slot)
         if err != nil </span><span class="cov0" title="0">{
@@ -738,6 +797,7 @@ func (lobby *Lobby) IsSlotFilled(slot int) bool <span class="cov0" title="0">{
         <span class="cov0" title="0">return true</span>
 }
 
+// Setup the TF2 server for the lobby
 func (lobby *Lobby) SetupServer() error <span class="cov0" title="0">{
         if lobby.State == LobbyStateEnded </span><span class="cov0" title="0">{
                 return nil
@@ -747,6 +807,11 @@ func (lobby *Lobby) SetupServer() error <span class="cov0" title="0">{
         return err</span>
 }
 
+// Close the lobby.
+// Sets lobby.Sate to LobbyStateClosed
+// Marks all unfilled substitutes for the lobby as "filled" (so they don't appear in the frontend)
+// Delete the TF2 Server Info
+// Broadcast the change to all users
 func (lobby *Lobby) Close(rpc bool) <span class="cov8" title="1">{
         db.DB.Table("substitutes").Where("lobby_id = ?", lobby.ID).UpdateColumn("filled", true)
         db.DB.First(&amp;lobby).UpdateColumn("state", LobbyStateEnded)
@@ -765,6 +830,7 @@ func (lobby *Lobby) Close(rpc bool) <span class="cov8" title="1">{
         BroadcastLobby(lobby)</span>
 }
 
+// Update stats (lobbies played count) for
 func (lobby *Lobby) UpdateStats() <span class="cov8" title="1">{
         var slots []LobbySlot
         db.DB.Where("lobby_id = ?", lobby.ID).Find(&amp;slots)
@@ -814,6 +880,7 @@ func (lobby *Lobby) OnChange(base bool) <span class="cov8" title="1">{
         }
 }
 
+// Broadcasts the lobby to the lobby public room
 func BroadcastLobby(lobby *Lobby) <span class="cov8" title="1">{
         //db.DB.Preload("Spectators").First(&amp;lobby, lobby.ID)
         room := strconv.FormatUint(uint64(lobby.ID), 10)
@@ -821,11 +888,13 @@ func BroadcastLobby(lobby *Lobby) <span class="cov8" title="1">{
         broadcaster.SendMessageToRoom(fmt.Sprintf("%s_public", room), "lobbyData", DecorateLobbyData(lobby, true))
 }</span>
 
+// Broadcastst the lobby to the user
 func BroadcastLobbyToUser(lobby *Lobby, steamid string) <span class="cov0" title="0">{
         //db.DB.Preload("Spectators").First(&amp;lobby, lobby.ID)
         broadcaster.SendMessage(steamid, "lobbyData", DecorateLobbyData(lobby, true))
 }</span>
 
+// Broadcasts the lobby list to all users
 func BroadcastLobbyList() <span class="cov8" title="1">{
         var lobbies []Lobby
         db.DB.Where("state = ?", LobbyStateWaiting).Order("id desc").Find(&amp;lobbies)
@@ -1310,7 +1379,7 @@ func DecorateLobbyData(lobby *Lobby, includeDetails bool) LobbyData <span class=
         lobbyJs := LobbyData{
                 ID:      lobby.ID,
                 Mode:    lobby.Mode,
-                Type:    FormatMap[lobby.Type],
+                Type:    formatMap[lobby.Type],
                 Players: lobby.GetPlayerNumber(),
                 Map:     lobby.MapName,
                 League:  lobby.League,
@@ -1320,7 +1389,7 @@ func DecorateLobbyData(lobby *Lobby, includeDetails bool) LobbyData <span class=
         lobbyJs.Region.Name = lobby.RegionName
         lobbyJs.Region.Code = lobby.RegionCode
 
-        var classList = TypeClassList[lobby.Type]
+        var classList = typeClassList[lobby.Type]
 
         classes := make([]ClassDetails, len(classList))
         lobbyJs.MaxPlayers = NumberOfClassesMap[lobby.Type] * 2
@@ -1827,6 +1896,7 @@ func DecoratePlayerSummary(p *Player) PlayerSummary <span class="cov8" title="1"
 package models
 
 import (
+        "io"
         "net/rpc"
         "sync"
         "time"
@@ -1854,18 +1924,18 @@ type Args struct {
         Slot      string
 }
 
-var PaulingLock = new(sync.RWMutex)
-var Pauling *rpc.Client
+var mu = new(sync.RWMutex)
+var pauling *rpc.Client
 
 type Event map[string]interface{}
 
-func PaulingReconnect() <span class="cov0" title="0">{
+func paulingReconnect() <span class="cov0" title="0">{
         if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
                 return
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.Lock()
-        defer PaulingLock.Unlock()
+        <span class="cov0" title="0">mu.Lock()
+        defer mu.Unlock()
         helpers.Logger.Debug("Reconnecting to Pauling on port %s", config.Constants.PaulingPort)
         client, err := rpc.DialHTTP("tcp", "localhost:"+config.Constants.PaulingPort)
         for err != nil </span><span class="cov0" title="0">{
@@ -1874,7 +1944,7 @@ func PaulingReconnect() <span class="cov0" title="0">{
                 client, err = rpc.DialHTTP("tcp", "localhost:"+config.Constants.PaulingPort)
         }</span>
 
-        <span class="cov0" title="0">Pauling = client
+        <span class="cov0" title="0">pauling = client
         helpers.Logger.Debug("Connected!")</span>
 }
 
@@ -1883,8 +1953,8 @@ func PaulingConnect() <span class="cov0" title="0">{
                 return
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.Lock()
-        defer PaulingLock.Unlock()
+        <span class="cov0" title="0">mu.Lock()
+        defer mu.Unlock()
 
         helpers.Logger.Debug("Connecting to Pauling on port %s", config.Constants.PaulingPort)
         client, err := rpc.DialHTTP("tcp", "localhost:"+config.Constants.PaulingPort)
@@ -1892,7 +1962,7 @@ func PaulingConnect() <span class="cov0" title="0">{
                 helpers.Logger.Fatal(err)
         }</span>
 
-        <span class="cov0" title="0">Pauling = client
+        <span class="cov0" title="0">pauling = client
         helpers.Logger.Debug("Connected!")</span>
 }
 
@@ -1901,10 +1971,10 @@ func AllowPlayer(lobbyId uint, steamId string, slot string) error <span class="c
                 return nil
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.RLock()
-        defer PaulingLock.RUnlock()
+        <span class="cov0" title="0">mu.RLock()
+        defer mu.RUnlock()
 
-        return Pauling.Call("Pauling.AllowPlayer", &amp;Args{Id: lobbyId, SteamId: steamId, Slot: slot}, &amp;Args{})</span>
+        return pauling.Call("Pauling.AllowPlayer", &amp;Args{Id: lobbyId, SteamId: steamId, Slot: slot}, &amp;Args{})</span>
 }
 
 func DisallowPlayer(lobbyId uint, steamId string) error <span class="cov8" title="1">{
@@ -1912,10 +1982,10 @@ func DisallowPlayer(lobbyId uint, steamId string) error <span class="cov8" title
                 return nil
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.RLock()
-        defer PaulingLock.RUnlock()
+        <span class="cov0" title="0">mu.RLock()
+        defer mu.RUnlock()
 
-        return Pauling.Call("Pauling.DisallowPlayer", &amp;Args{Id: lobbyId, SteamId: steamId}, &amp;Args{})</span>
+        return pauling.Call("Pauling.DisallowPlayer", &amp;Args{Id: lobbyId, SteamId: steamId}, &amp;Args{})</span>
 }
 
 func SetupServer(lobbyId uint, info ServerRecord, lobbyType LobbyType, league string,
@@ -1924,8 +1994,8 @@ func SetupServer(lobbyId uint, info ServerRecord, lobbyType LobbyType, league st
                 return nil
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.RLock()
-        defer PaulingLock.RUnlock()
+        <span class="cov0" title="0">mu.RLock()
+        defer mu.RUnlock()
 
         args := &amp;Args{
                 Id:        lobbyId,
@@ -1934,7 +2004,7 @@ func SetupServer(lobbyId uint, info ServerRecord, lobbyType LobbyType, league st
                 League:    league,
                 Whitelist: whitelist,
                 Map:       mapName}
-        return Pauling.Call("Pauling.SetupServer", args, &amp;Args{})</span>
+        return pauling.Call("Pauling.SetupServer", args, &amp;Args{})</span>
 }
 
 func ReExecConfig(lobbyId uint) error <span class="cov0" title="0">{
@@ -1942,7 +2012,7 @@ func ReExecConfig(lobbyId uint) error <span class="cov0" title="0">{
                 return nil
         }</span>
 
-        <span class="cov0" title="0">return Pauling.Call("Pauling.ReExecConfig", &amp;Args{Id: lobbyId}, &amp;Args{})</span>
+        <span class="cov0" title="0">return pauling.Call("Pauling.ReExecConfig", &amp;Args{Id: lobbyId}, &amp;Args{})</span>
 }
 
 func VerifyInfo(info ServerRecord) error <span class="cov0" title="0">{
@@ -1950,10 +2020,10 @@ func VerifyInfo(info ServerRecord) error <span class="cov0" title="0">{
                 return nil
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.RLock()
-        defer PaulingLock.RUnlock()
+        <span class="cov0" title="0">mu.RLock()
+        defer mu.RUnlock()
 
-        return Pauling.Call("Pauling.VerifyInfo", &amp;info, &amp;Args{})</span>
+        return pauling.Call("Pauling.VerifyInfo", &amp;info, &amp;Args{})</span>
 }
 
 func IsPlayerInServer(steamid string) (reply bool) <span class="cov0" title="0">{
@@ -1961,13 +2031,28 @@ func IsPlayerInServer(steamid string) (reply bool) <span class="cov0" title="0">
                 return false
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.RLock()
-        defer PaulingLock.RUnlock()
+        <span class="cov0" title="0">mu.RLock()
+        defer mu.RUnlock()
 
         args := &amp;Args{SteamId: steamid}
-        Pauling.Call("Pauling.IsPlayerInServer", &amp;args, &amp;reply)
+        pauling.Call("Pauling.IsPlayerInServer", &amp;args, &amp;reply)
 
         return</span>
+}
+
+func GetEvent() Event <span class="cov0" title="0">{
+        event := make(Event)
+
+        err := pauling.Call("Pauling.GetEvent", &amp;Args{}, &amp;event)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == io.ErrUnexpectedEOF </span><span class="cov0" title="0">{
+                        paulingReconnect()
+                        return GetEvent()
+                }</span>
+                <span class="cov0" title="0">helpers.Logger.Fatal(err.Error())</span>
+        }
+
+        <span class="cov0" title="0">return event</span>
 }
 
 func End(lobbyId uint) <span class="cov8" title="1">{
@@ -1975,10 +2060,10 @@ func End(lobbyId uint) <span class="cov8" title="1">{
                 return
         }</span>
 
-        <span class="cov0" title="0">PaulingLock.RLock()
-        defer PaulingLock.RUnlock()
+        <span class="cov0" title="0">mu.RLock()
+        defer mu.RUnlock()
 
-        Pauling.Call("Pauling.End", &amp;Args{Id: lobbyId}, &amp;Args{})</span>
+        pauling.Call("Pauling.End", &amp;Args{Id: lobbyId}, &amp;Args{})</span>
 }
 </pre>
 		
@@ -2188,7 +2273,7 @@ func NewSub(lobbyid uint, steamid string) (*Substitute, error) <span class="cov8
         sub := &amp;Substitute{}
 
         sub.LobbyID = lob.ID
-        sub.Format = FormatMap[lob.Type]
+        sub.Format = formatMap[lob.Type]
         sub.SteamID = player.SteamId
         sub.MapName = lob.MapName
         sub.Region = lob.RegionName
