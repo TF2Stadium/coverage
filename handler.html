@@ -1,0 +1,1248 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/TF2Stadium/Helen/controllers/socket/internal/handler/admin.go (4.0%)</option>
+				
+				<option value="file1">github.com/TF2Stadium/Helen/controllers/socket/internal/handler/ban.go (8.7%)</option>
+				
+				<option value="file2">github.com/TF2Stadium/Helen/controllers/socket/internal/handler/chat.go (62.9%)</option>
+				
+				<option value="file3">github.com/TF2Stadium/Helen/controllers/socket/internal/handler/global.go (27.3%)</option>
+				
+				<option value="file4">github.com/TF2Stadium/Helen/controllers/socket/internal/handler/lobby.go (24.4%)</option>
+				
+				<option value="file5">github.com/TF2Stadium/Helen/controllers/socket/internal/handler/player.go (1.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" >// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package handler
+
+import (
+        "net/http"
+
+        chelpers "github.com/TF2Stadium/Helen/controllers/controllerhelpers"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/models"
+        "github.com/TF2Stadium/wsevent"
+)
+
+type FakeResponseWriter struct{}
+
+func (f FakeResponseWriter) Header() http.Header <span class="cov0" title="0">{
+        return http.Header{}
+}</span>
+func (f FakeResponseWriter) Write(b []byte) (int, error) <span class="cov0" title="0">{
+        return 0, nil
+}</span>
+func (f FakeResponseWriter) WriteHeader(int) <span class="cov0" title="0">{}</span>
+
+type Admin struct{}
+
+func (Admin) Name(s string) string <span class="cov8" title="1">{
+        return string((s[0])+32) + s[1:]
+}</span>
+
+func (Admin) AdminChangeRole(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, 0, true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+        <span class="cov0" title="0">var args struct {
+                Steamid *string `json:"steamid"`
+                Role    *string `json:"role"`
+        }
+
+        err := chelpers.GetParams(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">role, ok := helpers.RoleMap[*args.Role]
+        if !ok || role == helpers.RoleAdmin </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Invalid role parameter", 0)
+        }</span>
+
+        <span class="cov0" title="0">otherPlayer, tperr := models.GetPlayerBySteamId(*args.Steamid)
+        if err != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">currPlayer, _ := chelpers.GetPlayerSocket(so.Id())
+
+        models.LogAdminAction(currPlayer.ID, helpers.ActionChangeRole, otherPlayer.ID)
+
+        // actual change happens
+        otherPlayer.Role = role
+        db.DB.Save(&amp;otherPlayer)
+
+        // rewrite session data. THIS WON'T WRITE A COOKIE SO IT ONLY WORKS WITH
+        // STORES THAT STORE DATA IN COOKIES (AND NOT ONLY SESSION ID).
+        session, sesserr := chelpers.GetSessionHTTP(so.Request())
+        if sesserr == nil </span><span class="cov0" title="0">{
+                session.Values["role"] = role
+                session.Save(so.Request(), FakeResponseWriter{})
+        }</span>
+
+        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handler
+
+import (
+        "time"
+
+        chelpers "github.com/TF2Stadium/Helen/controllers/controllerhelpers"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/helpers/authority"
+        "github.com/TF2Stadium/Helen/models"
+        "github.com/TF2Stadium/wsevent"
+)
+
+func newBan(player_steamid, admin_steamid string, action authority.AuthAction, bantype models.PlayerBanType, until int64, reason string) *helpers.TPError <span class="cov0" title="0">{
+        player, tperr := models.GetPlayerBySteamId(player_steamid)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+        <span class="cov0" title="0">admin, tperr := models.GetPlayerBySteamId(admin_steamid)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">time := time.Unix(time.Now().Unix()+until, 0)
+        err := player.BanUntil(time, bantype, reason)
+
+        if err != nil </span><span class="cov0" title="0">{
+                tperr = helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">err = models.LogAdminAction(admin.ID, action, player.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func unban(steamid string, bantype models.PlayerBanType) *helpers.TPError <span class="cov0" title="0">{
+        player, tperr := models.GetPlayerBySteamId(steamid)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">err := player.Unban(bantype)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func InitializeBans(server *wsevent.Server) <span class="cov8" title="1">{
+        bans := []struct {
+                eventName string
+                action    authority.AuthAction
+                banType   models.PlayerBanType
+        }{
+                {"banJoin", helpers.ActionBanJoin, models.PlayerBanJoin},
+                {"banCreate", helpers.ActionBanCreate, models.PlayerBanCreate},
+                {"banChat", helpers.ActionBanChat, models.PlayerBanChat},
+        }
+
+        for _, ban := range bans </span><span class="cov8" title="1">{
+                server.On(ban.eventName, func(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} </span><span class="cov0" title="0">{
+                        reqerr := chelpers.FilterRequest(so, ban.action, true)
+                        if reqerr != nil </span><span class="cov0" title="0">{
+                                return reqerr
+                        }</span>
+
+                        <span class="cov0" title="0">var args struct {
+                                SteamID *string `json:"steamid"`
+                                Until   *int64  `json:"until"`
+                                Reason  *string `json:"reason"`
+                        }
+
+                        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                                return helpers.NewTPErrorFromError(err)
+                        }</span>
+
+                        <span class="cov0" title="0">steamID := chelpers.GetSteamId(so.Id())
+
+                        tperr := newBan(*args.SteamID, steamID, ban.action, ban.banType, *args.Until, *args.Reason)
+                        if tperr != nil </span><span class="cov0" title="0">{
+                                return tperr
+                        }</span>
+
+                        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+                })
+
+                <span class="cov8" title="1">server.On("Un"+ban.eventName, func(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} </span><span class="cov0" title="0">{
+                        reqerr := chelpers.FilterRequest(so, ban.action, true)
+                        if reqerr != nil </span><span class="cov0" title="0">{
+                                return reqerr
+                        }</span>
+
+                        <span class="cov0" title="0">var args struct {
+                                SteamID *string `json:"steamid"`
+                        }
+
+                        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                                return helpers.NewTPErrorFromError(err)
+                        }</span>
+
+                        <span class="cov0" title="0">err := unban(*args.SteamID, ban.banType)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+                })
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package handler
+
+import (
+        "fmt"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/TF2Stadium/Helen/config"
+        "github.com/TF2Stadium/Helen/controllers/broadcaster"
+        chelpers "github.com/TF2Stadium/Helen/controllers/controllerhelpers"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/models"
+        "github.com/TF2Stadium/wsevent"
+)
+
+type Chat struct{}
+
+func (Chat) Name(s string) string <span class="cov8" title="1">{
+        return string((s[0])+32) + s[1:]
+}</span>
+
+var lastChatTime = make(map[string]int64)
+
+func (Chat) ChatSend(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov8" title="1">{
+        reqerr := chelpers.FilterRequest(so, 0, true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov8" title="1">steamid := chelpers.GetSteamId(so.Id())
+        now := time.Now().Unix()
+        if now-lastChatTime[steamid] == 0 </span><span class="cov0" title="0">{
+                return helpers.NewTPError("You're sending messages too quickly", -1)
+        }</span>
+
+        <span class="cov8" title="1">player, tperr := models.GetPlayerBySteamId(steamid)
+
+        var args struct {
+                Message *string `json:"message"`
+                Room    *int    `json:"room"`
+        }
+
+        err := chelpers.GetParams(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov8" title="1">lastChatTime[steamid] = now
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        //helpers.Logger.Debug("received chat message: %s %s", *args.Message, player.Name)
+
+        <span class="cov8" title="1">if *args.Room &gt; 0 </span><span class="cov0" title="0">{
+                var count int
+                spec := player.IsSpectatingId(uint(*args.Room))
+                //Check if player has either joined, or is spectating lobby
+                db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", *args.Room, player.ID).Count(&amp;count)
+
+                if !spec &amp;&amp; count == 0 </span><span class="cov0" title="0">{
+                        return helpers.NewTPError("Player is not in the lobby.", 5)
+                }</span>
+        }<span class="cov8" title="1"> else {
+                // else room is the lobby list room
+                *args.Room, _ = strconv.Atoi(config.Constants.GlobalChatRoom)
+        }</span>
+        <span class="cov8" title="1">if (*args.Message)[0] == '\n' </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Cannot send messages prefixed with newline", 4)
+        }</span>
+
+        <span class="cov8" title="1">if len(*args.Message) &gt; 120 </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Message too long", 4)
+        }</span>
+
+        <span class="cov8" title="1">message, tperr := models.NewChatMessage(*args.Message, *args.Room, player)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+        <span class="cov8" title="1">db.DB.Save(message)
+        broadcaster.SendMessageToRoom(fmt.Sprintf("%s_public",
+                chelpers.GetLobbyRoom(uint(*args.Room))),
+                "chatReceive", message)
+
+        if strings.HasPrefix(*args.Message, "!admin") </span><span class="cov0" title="0">{
+                chelpers.SendToSlack(*args.Message, player.Name, player.SteamId)
+        }</span>
+
+        <span class="cov8" title="1">return chelpers.EmptySuccessJS</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package handler
+
+import (
+        chelpers "github.com/TF2Stadium/Helen/controllers/controllerhelpers"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/models"
+        "github.com/TF2Stadium/wsevent"
+        "github.com/bitly/go-simplejson"
+)
+
+type Global struct{}
+
+func (Global) Name(s string) string <span class="cov8" title="1">{
+        return string((s[0])+32) + s[1:]
+}</span>
+
+func (Global) GetConstant(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        var args struct {
+                Constant string `json:"constant"`
+        }
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">output := simplejson.New()
+        switch args.Constant </span>{
+        <span class="cov0" title="0">case "lobbySettingsList":
+                output = models.LobbySettingsToJson()</span>
+        <span class="cov0" title="0">default:
+                return helpers.NewTPError("Unknown constant.", -1)</span>
+        }
+
+        <span class="cov0" title="0">return chelpers.BuildSuccessJSON(output)</span>
+}
+
+func (Global) GetSocketInfo(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov8" title="1">{
+        socketinfo := struct {
+                ID    string   `json:"id"`
+                Rooms []string `json:"rooms"`
+        }{so.Id(), server.RoomsJoined(so.Id())}
+
+        return chelpers.BuildSuccessJSON(socketinfo)
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package handler
+
+import (
+        "crypto/rand"
+        "encoding/base64"
+        "fmt"
+        "regexp"
+        "time"
+
+        "github.com/TF2Stadium/Helen/config"
+        "github.com/TF2Stadium/Helen/controllers/broadcaster"
+        chelpers "github.com/TF2Stadium/Helen/controllers/controllerhelpers"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/helpers/authority"
+        "github.com/TF2Stadium/Helen/models"
+        "github.com/TF2Stadium/wsevent"
+)
+
+type Lobby struct{}
+
+func (Lobby) Name(s string) string <span class="cov8" title="1">{
+        return string((s[0])+32) + s[1:]
+}</span>
+
+func (Lobby) LobbyCreate(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov8" title="1">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov8" title="1">player, _ := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+        if banned, until := player.IsBannedWithTime(models.PlayerBanCreate); banned </span><span class="cov0" title="0">{
+                str := fmt.Sprintf("You've been banned from creating lobbies till %s", until.Format(time.RFC822))
+                return helpers.NewTPError(str, -1)
+        }</span>
+
+        <span class="cov8" title="1">var args struct {
+                Map         *string `json:"map"`
+                Type        *string `json:"type" valid:"debug,6s,highlander,4v4,ultiduo,bball"`
+                League      *string `json:"league" valid:"ugc,etf2l,esea,asiafortress,ozfortress"`
+                Server      *string `json:"server"`
+                RconPwd     *string `json:"rconpwd"`
+                WhitelistID *uint   `json:"whitelistID"`
+                Mumble      *bool   `json:"mumbleRequired"`
+        }
+
+        err := chelpers.GetParams(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov8" title="1">var playermap = map[string]models.LobbyType{
+                "debug":      models.LobbyTypeDebug,
+                "6s":         models.LobbyTypeSixes,
+                "highlander": models.LobbyTypeHighlander,
+                "ultiduo":    models.LobbyTypeUltiduo,
+                "bball":      models.LobbyTypeBball,
+                "4v4":        models.LobbyTypeFours,
+        }
+
+        lobbyType := playermap[*args.Type]
+
+        var count int
+        db.DB.Table("server_records").Where("host = ?", *args.Server).Count(&amp;count)
+        if count != 0 </span><span class="cov0" title="0">{
+                return helpers.NewTPError("A lobby is already using this server.", -1)
+        }</span>
+
+        <span class="cov8" title="1">randBytes := make([]byte, 6)
+        rand.Read(randBytes)
+        serverPwd := base64.URLEncoding.EncodeToString(randBytes)
+
+        //TODO what if playermap[lobbytype] is nil?
+        info := models.ServerRecord{
+                Host:           *args.Server,
+                RconPassword:   *args.RconPwd,
+                ServerPassword: serverPwd}
+        // err = models.VerifyInfo(info)
+        // if err != nil {
+        //         bytes, _ := helpers.NewTPErrorFromError(err).Encode()
+        //         return string(bytes)
+        // }
+
+        lob := models.NewLobby(*args.Map, lobbyType, *args.League, info, int(*args.WhitelistID), *args.Mumble)
+        lob.CreatedBySteamID = player.SteamId
+        lob.RegionCode, lob.RegionName = chelpers.GetRegion(*args.Server)
+        if (lob.RegionCode == "" || lob.RegionName == "") &amp;&amp; config.Constants.GeoIP != "" </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Couldn't find region server.", 1)
+        }</span>
+        <span class="cov8" title="1">lob.Save()
+
+        err = lob.SetupServer()
+        if err != nil </span><span class="cov0" title="0">{
+                qerr := db.DB.Where("id = ?", lob.ID).Delete(&amp;models.Lobby{}).Error
+                if qerr != nil </span><span class="cov0" title="0">{
+                        helpers.Logger.Warning(qerr.Error())
+                }</span>
+                <span class="cov0" title="0">db.DB.Delete(&amp;lob.ServerInfo)
+                return helpers.NewTPErrorFromError(err)</span>
+        }
+
+        <span class="cov8" title="1">lob.State = models.LobbyStateWaiting
+        lob.Save()
+
+        models.FumbleLobbyCreated(lob)
+
+        return chelpers.BuildSuccessJSON(
+                struct {
+                        ID uint `json:"id"`
+                }{lob.ID})</span>
+}
+
+func (Lobby) LobbyServerReset(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                ID *uint `json:"id"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">player, tperr := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lobby, tperr := models.GetLobbyById(*args.ID)
+
+        if player.SteamId != lobby.CreatedBySteamID || player.Role != helpers.RoleAdmin </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player not authorized to reset server.", -1)
+        }</span>
+
+        <span class="cov0" title="0">if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">if lobby.State == models.LobbyStateEnded </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Lobby has ended", 1)
+        }</span>
+
+        <span class="cov0" title="0">if err := models.ReExecConfig(lobby.ID); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+
+}
+
+var validAddress = regexp.MustCompile(`.+\:\d+`)
+
+func (Lobby) ServerVerify(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                Server  *string `json:"server"`
+                Rconpwd *string `json:"rconpwd"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">if !validAddress.MatchString(*args.Server) </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Invalid Server Address", -1)
+        }</span>
+
+        <span class="cov0" title="0">var count int
+        db.DB.Table("server_records").Where("host = ?", *args.Server).Count(&amp;count)
+        if count != 0 </span><span class="cov0" title="0">{
+                return helpers.NewTPError("A lobby is already using this server.", -1)
+        }</span>
+
+        <span class="cov0" title="0">info := &amp;models.ServerRecord{
+                Host:         *args.Server,
+                RconPassword: *args.Rconpwd,
+        }
+        db.DB.Save(info)
+        defer db.DB.Where("host = ?", info.Host).Delete(models.ServerRecord{})
+
+        err := models.VerifyInfo(*info)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) LobbyClose(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                Id *uint `json:"id"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+
+        }</span>
+
+        <span class="cov0" title="0">player, _ := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+
+        lob, tperr := models.GetLobbyByIdServer(uint(*args.Id))
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">if player.SteamId != lob.CreatedBySteamID &amp;&amp; player.Role != helpers.RoleAdmin </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player not authorized to close lobby.", -1)
+
+        }</span>
+
+        <span class="cov0" title="0">if lob.State == models.LobbyStateEnded </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Lobby already closed.", -1)
+        }</span>
+
+        <span class="cov0" title="0">models.FumbleLobbyEnded(lob)
+
+        lob.Close(true)
+        models.BroadcastLobbyList() // has to be done manually for now
+
+        return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) LobbyJoin(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov8" title="1">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+
+        }</span>
+
+        <span class="cov8" title="1">player, _ := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+        if banned, until := player.IsBannedWithTime(models.PlayerBanJoin); banned </span><span class="cov0" title="0">{
+                str := fmt.Sprintf("You have been banned from joining lobbies till %s", until.Format(time.RFC822))
+                return helpers.NewTPError(str, -1)
+        }</span>
+
+        <span class="cov8" title="1">var args struct {
+                Id    *uint   `json:"id"`
+                Class *string `json:"class"`
+                Team  *string `json:"team" valid:"red,blu"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+        //helpers.Logger.Debug("id %d class %s team %s", *args.Id, *args.Class, *args.Team)
+
+        <span class="cov8" title="1">lob, tperr := models.GetLobbyById(*args.Id)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov8" title="1">if lob.State == models.LobbyStateEnded </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Cannot join a closed lobby.", -1)
+
+        }</span>
+
+        //Check if player is in the same lobby
+        <span class="cov8" title="1">var sameLobby bool
+        if id, err := player.GetLobbyId(); err == nil &amp;&amp; id == *args.Id </span><span class="cov0" title="0">{
+                sameLobby = true
+        }</span>
+
+        <span class="cov8" title="1">slot, tperr := models.LobbyGetPlayerSlot(lob.Type, *args.Team, *args.Class)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov8" title="1">if prevId, _ := player.GetLobbyId(); prevId != 0 &amp;&amp; !sameLobby </span><span class="cov0" title="0">{
+                server.RemoveClient(so.Id(), fmt.Sprintf("%d_public", prevId))
+                server.RemoveClient(so.Id(), fmt.Sprintf("%d_private", prevId))
+        }</span>
+
+        <span class="cov8" title="1">tperr = lob.AddPlayer(player, slot, *args.Team, *args.Class)
+
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov8" title="1">if !sameLobby </span><span class="cov8" title="1">{
+                chelpers.AfterLobbyJoin(server, so, lob, player)
+        }</span>
+
+        <span class="cov8" title="1">if lob.IsFull() </span><span class="cov0" title="0">{
+                lob.State = models.LobbyStateReadyingUp
+                lob.ReadyUpTimestamp = time.Now().Unix() + 30
+                lob.Save()
+
+                tick := time.After(time.Second * 30)
+                id := lob.ID
+                stop := make(chan struct{})
+
+                go func() </span><span class="cov0" title="0">{
+                        select </span>{
+                        <span class="cov0" title="0">case &lt;-tick:
+                                lobby := &amp;models.Lobby{}
+                                db.DB.First(lobby, id)
+
+                                if lobby.State != models.LobbyStateInProgress </span><span class="cov0" title="0">{
+                                        err := lobby.RemoveUnreadyPlayers()
+                                        if err != nil </span><span class="cov0" title="0">{
+                                                helpers.Logger.Error("RemoveUnreadyPlayers: ", err.Error())
+                                                err = nil
+                                        }</span>
+
+                                        <span class="cov0" title="0">err = lobby.UnreadyAllPlayers()
+                                        if err != nil </span><span class="cov0" title="0">{
+                                                helpers.Logger.Error("UnreadyAllPlayers: ", err.Error())
+                                        }</span>
+
+                                        <span class="cov0" title="0">lobby.State = models.LobbyStateWaiting
+                                        lobby.Save()</span>
+                                }
+
+                        <span class="cov0" title="0">case &lt;-stop:
+                                return</span>
+                        }
+                }()
+
+                <span class="cov0" title="0">room := fmt.Sprintf("%s_private",
+                        chelpers.GetLobbyRoom(lob.ID))
+                broadcaster.SendMessageToRoom(room, "lobbyReadyUp",
+                        struct {
+                                Timeout int `json:"timeout"`
+                        }{30})
+                models.BroadcastLobbyList()</span>
+        }
+
+        <span class="cov8" title="1">err := models.AllowPlayer(*args.Id, player.SteamId, *args.Team+*args.Class)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Error(err.Error())
+        }</span>
+
+        <span class="cov8" title="1">if lob.State == models.LobbyStateInProgress </span><span class="cov0" title="0">{
+                broadcaster.SendMessage(player.SteamId, "lobbyStart", models.DecorateLobbyConnect(lob, player.Name, *args.Class))
+        }</span>
+
+        <span class="cov8" title="1">return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) LobbySpectatorJoin(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov8" title="1">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov8" title="1">var args struct {
+                Id *uint `json:"id"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov8" title="1">var lob *models.Lobby
+        lob, tperr := models.GetLobbyById(*args.Id)
+
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov8" title="1">player, tperr := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov8" title="1">var specSameLobby bool
+
+        arr, tperr := player.GetSpectatingIds()
+        if len(arr) != 0 </span><span class="cov0" title="0">{
+                for _, id := range arr </span><span class="cov0" title="0">{
+                        if id == *args.Id </span><span class="cov0" title="0">{
+                                specSameLobby = true
+                                continue</span>
+                        }
+
+                        <span class="cov0" title="0">lobby, _ := models.GetLobbyById(id)
+                        lobby.RemoveSpectator(player, true)
+
+                        server.RemoveClient(so.Id(), fmt.Sprintf("%d_public", id))</span>
+                }
+        }
+
+        // If the player is already in the lobby (either joined a slot or is spectating), don't add them.
+        // Just Broadcast the lobby to them, so the frontend displays it.
+        <span class="cov8" title="1">if id, _ := player.GetLobbyId(); id != *args.Id &amp;&amp; !specSameLobby </span><span class="cov8" title="1">{
+                tperr = lob.AddSpectator(player)
+
+                if tperr != nil </span><span class="cov0" title="0">{
+                        return tperr
+                }</span>
+        }
+
+        <span class="cov8" title="1">chelpers.AfterLobbySpec(server, so, lob)
+        models.BroadcastLobbyToUser(lob, player.SteamId)
+        return chelpers.EmptySuccessJS</span>
+}
+
+func removePlayerFromLobby(lobbyId uint, steamId string) (*models.Lobby, *models.Player, *helpers.TPError) <span class="cov0" title="0">{
+        player, tperr := models.GetPlayerBySteamId(steamId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return nil, nil, tperr
+        }</span>
+
+        <span class="cov0" title="0">lob, tperr := models.GetLobbyById(lobbyId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return nil, nil, tperr
+        }</span>
+
+        <span class="cov0" title="0">switch lob.State </span>{
+        <span class="cov0" title="0">case models.LobbyStateInProgress:
+                return lob, player, helpers.NewTPError("Lobby is in progress.", 1)</span>
+        <span class="cov0" title="0">case models.LobbyStateEnded:
+                return lob, player, helpers.NewTPError("Lobby has closed.", 1)</span>
+        }
+
+        <span class="cov0" title="0">_, err := lob.GetPlayerSlot(player)
+        if err != nil </span><span class="cov0" title="0">{
+                return lob, player, helpers.NewTPError("Player not playing", 2)
+        }</span>
+
+        <span class="cov0" title="0">if err := lob.RemovePlayer(player); err != nil </span><span class="cov0" title="0">{
+                return lob, player, err
+        }</span>
+
+        <span class="cov0" title="0">return lob, player, lob.AddSpectator(player)</span>
+}
+
+func playerCanKick(lobbyId uint, steamId string) (bool, *helpers.TPError) <span class="cov0" title="0">{
+        lob, tperr := models.GetLobbyById(lobbyId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return false, tperr
+        }</span>
+
+        <span class="cov0" title="0">player, tperr2 := models.GetPlayerBySteamId(steamId)
+        if tperr2 != nil </span><span class="cov0" title="0">{
+                return false, tperr2
+        }</span>
+        <span class="cov0" title="0">if steamId != lob.CreatedBySteamID &amp;&amp; player.Role != helpers.RoleAdmin </span><span class="cov0" title="0">{
+                return false, helpers.NewTPError("Not authorized to kick players", 1)
+        }</span>
+        <span class="cov0" title="0">return true, nil</span>
+}
+
+func (Lobby) LobbyKick(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                Id      *uint   `json:"id"`
+                Steamid *string `json:"steamid"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">steamId := *args.Steamid
+        selfSteamId := chelpers.GetSteamId(so.Id())
+
+        if steamId == selfSteamId </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player can't kick himself.", -1)
+        }</span>
+        <span class="cov0" title="0">if ok, tperr := playerCanKick(*args.Id, selfSteamId); !ok </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lob, player, tperr := removePlayerFromLobby(*args.Id, steamId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">so, _ = broadcaster.GetSocket(player.SteamId)
+        chelpers.AfterLobbyLeave(server, so, lob, player)
+
+        // broadcaster.SendMessage(steamId, "sendNotification",
+        //         fmt.Sprintf(`{"notification": "You have been removed from Lobby #%d"}`, *args.Id))
+
+        return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) LobbyBan(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                Id      *uint   `json:"id"`
+                Steamid *string `json:"steamid"`
+        }
+
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">steamId := *args.Steamid
+        selfSteamId := chelpers.GetSteamId(so.Id())
+
+        if steamId == selfSteamId </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player can't kick himself.", -1)
+        }</span>
+        <span class="cov0" title="0">if ok, tperr := playerCanKick(*args.Id, selfSteamId); !ok </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lob, player, tperr := removePlayerFromLobby(*args.Id, steamId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lob.BanPlayer(player)
+
+        so, _ = broadcaster.GetSocket(player.SteamId)
+        chelpers.AfterLobbyLeave(server, so, lob, player)
+
+        // broadcaster.SendMessage(steamId, "sendNotification",
+        //         fmt.Sprintf(`{"notification": "You have been removed from Lobby #%d"}`, *args.Id))
+
+        return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) LobbyLeave(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                Id *uint `json:"id"`
+        }
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">steamId := chelpers.GetSteamId(so.Id())
+
+        lob, player, tperr := removePlayerFromLobby(*args.Id, steamId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">chelpers.AfterLobbyLeave(server, so, lob, player)
+
+        return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) LobbySpectatorLeave(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">var args struct {
+                Id *uint `json:"id"`
+        }
+        if err := chelpers.GetParams(data, &amp;args); err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">steamId := chelpers.GetSteamId(so.Id())
+        player, tperr := models.GetPlayerBySteamId(steamId)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lob, tperr := models.GetLobbyById(*args.Id)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">if !player.IsSpectatingId(lob.ID) </span><span class="cov0" title="0">{
+                if id, _ := player.GetLobbyId(); id == *args.Id </span><span class="cov0" title="0">{
+                        chelpers.AfterLobbySpecLeave(server, so, lob)
+                        return chelpers.EmptySuccessJS
+                }</span>
+
+                <span class="cov0" title="0">return helpers.NewTPError("Player is not spectating", -1)</span>
+        }
+
+        <span class="cov0" title="0">lob.RemoveSpectator(player, true)
+        chelpers.AfterLobbySpecLeave(server, so, lob)
+
+        return chelpers.EmptySuccessJS</span>
+}
+
+func (Lobby) RequestLobbyListData(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        var lobbies []models.Lobby
+        db.DB.Where("state = ?", models.LobbyStateWaiting).Order("id desc").Find(&amp;lobbies)
+        so.EmitJSON(helpers.NewRequest("lobbyListData", models.DecorateLobbyListData(lobbies)))
+
+        return chelpers.EmptySuccessJS
+}</span>
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package handler
+
+import (
+        chelpers "github.com/TF2Stadium/Helen/controllers/controllerhelpers"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/helpers/authority"
+        "github.com/TF2Stadium/Helen/models"
+        "github.com/TF2Stadium/wsevent"
+)
+
+type Player struct{}
+
+func (Player) Name(s string) string <span class="cov8" title="1">{
+        return string((s[0])+32) + s[1:]
+}</span>
+
+func (Player) PlayerReady(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">steamid := chelpers.GetSteamId(so.Id())
+        player, tperr := models.GetPlayerBySteamId(steamid)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lobbyid, tperr := player.GetLobbyId()
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lobby, tperr := models.GetLobbyByIdServer(lobbyid)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">if lobby.State != models.LobbyStateReadyingUp </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Lobby hasn't been filled up yet.", 4)
+        }</span>
+
+        <span class="cov0" title="0">tperr = lobby.ReadyPlayer(player)
+
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">if lobby.IsEveryoneReady() </span><span class="cov0" title="0">{
+                db.DB.Table("lobbies").Where("id = ?", lobby.ID).Update("state", models.LobbyStateInProgress)
+
+                chelpers.BroadcastLobbyStart(lobby)
+                models.BroadcastLobbyList()
+                models.FumbleLobbyStarted(lobby)
+        }</span>
+
+        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+}
+
+func (Player) PlayerNotReady(_ *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, authority.AuthAction(0), true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+
+        <span class="cov0" title="0">player, tperr := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lobbyid, tperr := player.GetLobbyId()
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lobby, tperr := models.GetLobbyById(lobbyid)
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">if lobby.State != models.LobbyStateReadyingUp </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Lobby hasn't been filled up yet.", 4)
+        }</span>
+
+        <span class="cov0" title="0">tperr = lobby.UnreadyPlayer(player)
+        lobby.RemovePlayer(player)
+
+        if tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+
+        <span class="cov0" title="0">lobby.UnreadyAllPlayers()
+        return chelpers.EmptySuccessJS</span>
+}
+
+func (Player) PlayerSettingsGet(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, 0, true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+        <span class="cov0" title="0">var args struct {
+                Key string `json:"key"`
+        }
+
+        err := chelpers.GetParams(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">player, _ := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+
+        var settings []models.PlayerSetting
+        var setting models.PlayerSetting
+        if args.Key == "*" </span><span class="cov0" title="0">{
+                settings, err = player.GetSettings()
+        }</span><span class="cov0" title="0"> else {
+                setting, err = player.GetSetting(args.Key)
+                settings = append(settings, setting)
+        }</span>
+
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">result := models.DecoratePlayerSettingsJson(settings)
+        return chelpers.BuildSuccessJSON(result)</span>
+}
+
+func (Player) PlayerSettingsSet(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, 0, true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+        <span class="cov0" title="0">var args struct {
+                Key   string `json:"key"`
+                Value string `json:"value"`
+        }
+
+        err := chelpers.GetParams(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">player, _ := models.GetPlayerBySteamId(chelpers.GetSteamId(so.Id()))
+
+        err = player.SetSetting(args.Key, args.Value)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">return chelpers.EmptySuccessJS</span>
+}
+
+func (Player) PlayerProfile(server *wsevent.Server, so *wsevent.Client, data []byte) interface{} <span class="cov0" title="0">{
+        reqerr := chelpers.FilterRequest(so, 0, true)
+
+        if reqerr != nil </span><span class="cov0" title="0">{
+                return reqerr
+        }</span>
+        <span class="cov0" title="0">var args struct {
+                Steamid string `json:"steamid"`
+        }
+
+        err := chelpers.GetParams(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPErrorFromError(err)
+        }</span>
+
+        <span class="cov0" title="0">steamid := args.Steamid
+        if steamid == "" </span><span class="cov0" title="0">{
+                steamid = chelpers.GetSteamId(so.Id())
+        }</span>
+
+        <span class="cov0" title="0">player, playErr := models.GetPlayerWithStats(steamid)
+
+        if playErr != nil </span><span class="cov0" title="0">{
+                return playErr
+        }</span>
+
+        <span class="cov0" title="0">result := models.DecoratePlayerProfileJson(player)
+        return chelpers.BuildSuccessJSON(result)</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible = document.getElementById('file0');
+		files.addEventListener('change', onChange, false);
+		function onChange() {
+			visible.style.display = 'none';
+			visible = document.getElementById(files.value);
+			visible.style.display = 'block';
+			window.scrollTo(0, 0);
+		}
+	})();
+	</script>
+</html>

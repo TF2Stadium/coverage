@@ -1,0 +1,2253 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/TF2Stadium/Helen/models/admin_log.go (100.0%)</option>
+				
+				<option value="file1">github.com/TF2Stadium/Helen/models/chat.go (50.0%)</option>
+				
+				<option value="file2">github.com/TF2Stadium/Helen/models/classMaps.go (38.9%)</option>
+				
+				<option value="file3">github.com/TF2Stadium/Helen/models/lobby.go (80.2%)</option>
+				
+				<option value="file4">github.com/TF2Stadium/Helen/models/lobbySettings.go (81.7%)</option>
+				
+				<option value="file5">github.com/TF2Stadium/Helen/models/lobby_decorators.go (58.8%)</option>
+				
+				<option value="file6">github.com/TF2Stadium/Helen/models/player.go (63.1%)</option>
+				
+				<option value="file7">github.com/TF2Stadium/Helen/models/playerStats.go (33.3%)</option>
+				
+				<option value="file8">github.com/TF2Stadium/Helen/models/player_decorators.go (13.6%)</option>
+				
+				<option value="file9">github.com/TF2Stadium/Helen/models/rpc.go (6.9%)</option>
+				
+				<option value="file10">github.com/TF2Stadium/Helen/models/rpcFumble.go (5.5%)</option>
+				
+				<option value="file11">github.com/TF2Stadium/Helen/models/substitute.go (71.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" >// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/helpers/authority"
+        "github.com/jinzhu/gorm"
+)
+
+type AdminLogEntry struct {
+        gorm.Model
+        PlayerID uint   //Admin responsible for action
+        RelID    uint   `sql:"default:0"`  //The targated player
+        RelText  string `sql:"default:''"` //The action text
+}
+
+func LogCustomAdminAction(playerid uint, reltext string, relid uint) error <span class="cov8" title="1">{
+        entry := AdminLogEntry{
+                PlayerID: playerid,
+                RelID:    relid,
+                RelText:  reltext,
+        }
+
+        return database.DB.Create(&amp;entry).Error
+}</span>
+
+func LogAdminAction(playerid uint, permission authority.AuthAction, relid uint) error <span class="cov8" title="1">{
+        return LogCustomAdminAction(playerid, helpers.ActionNames[permission], relid)
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package models
+
+import (
+        "time"
+
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+)
+
+type ChatMessage struct {
+        ID        uint      `json:"id"`
+        CreatedAt time.Time `json:"-"`
+
+        Timestamp int64 `sql:"-" json:"timestamp"`
+
+        PlayerID uint          `json:"-"`
+        Player   PlayerSummary `json:"player" sql:"-"`
+
+        Room    int    `json:"room"`
+        Message string `json:"message" sql:"type:varchar(120)"`
+        Deleted bool   `json:"-"`
+}
+
+func NewChatMessage(message string, room int, player *Player) (*ChatMessage, *helpers.TPError) <span class="cov8" title="1">{
+        if banned, _ := player.IsBannedWithTime(PlayerBanChat); banned </span><span class="cov0" title="0">{
+                return nil, helpers.NewTPError("Player has been chat-banned.", 2)
+        }</span>
+
+        <span class="cov8" title="1">record := &amp;ChatMessage{
+                Timestamp: time.Now().Unix(),
+
+                PlayerID: player.ID,
+                Player:   DecoratePlayerSummary(player),
+
+                Room:    room,
+                Message: message,
+        }
+
+        return record, nil</span>
+}
+
+func GetRoomMessages(room int) ([]*ChatMessage, error) <span class="cov8" title="1">{
+        var messages []*ChatMessage
+
+        err := db.DB.Table("chat_messages").Where("room = ?", room).Order("created_at").Find(&amp;messages).Error
+
+        return messages, err
+}</span>
+
+//Get all messages sent by player in a specfified room
+func GetPlayerMessages(player *Player) ([]*ChatMessage, error) <span class="cov8" title="1">{
+        var messages []*ChatMessage
+
+        err := db.DB.Table("chat_messages").Where("player_id = ?", player.ID).Order("room, created_at").Find(&amp;messages).Error
+
+        return messages, err
+
+}</span>
+
+func GetScrollback(room int) ([]*ChatMessage, error) <span class="cov0" title="0">{
+        var messages []*ChatMessage
+
+        err := db.DB.Table("chat_messages").Where("room = ?", room).Order("id desc").Limit(20).Find(&amp;messages).Error
+
+        for _, message := range messages </span><span class="cov0" title="0">{
+                var player Player
+                db.DB.First(&amp;player, message.PlayerID)
+                message.Player = DecoratePlayerSummary(&amp;player)
+                message.Timestamp = message.CreatedAt.Unix()
+        }</span>
+        <span class="cov0" title="0">return messages, err</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "github.com/TF2Stadium/Helen/helpers"
+)
+
+var teamMap = map[string]int{"red": 0, "blu": 1}
+var teamList = []string{"red", "blu"}
+
+var sixesClassMap = map[string]int{
+        "scout1":  0,
+        "scout2":  1,
+        "roamer":  2,
+        "pocket":  3,
+        "demoman": 4,
+        "medic":   5,
+}
+var sixesClassList = []string{"scout1", "scout2", "roamer", "pocket", "demoman", "medic"}
+
+var hlClassMap = map[string]int{
+        "scout":    0,
+        "soldier":  1,
+        "pyro":     2,
+        "demoman":  3,
+        "heavy":    4,
+        "engineer": 5,
+        "medic":    6,
+        "sniper":   7,
+        "spy":      8,
+}
+var hlClassList = []string{"scout", "soldier", "pyro", "demoman", "heavy", "engineer", "medic", "sniper", "spy"}
+
+var debugClassMap = map[string]int{
+        "scout": 0,
+}
+var debugClassList = []string{"scout"}
+
+var bballClassMap = map[string]int{
+        "soldier1": 0,
+        "soldier2": 1,
+}
+var bballClassList = []string{"soldier1", "soldier2"}
+
+var ultiduoClassMap = map[string]int{
+        "soldier": 0,
+        "medic":   1,
+}
+var ultiduoClassList = []string{"soldier", "medic"}
+
+var foursClassMap = map[string]int{
+        "scout":   0,
+        "soldier": 1,
+        "demoman": 2,
+        "medic":   3,
+}
+var foursClassList = []string{"scout", "soldier", "demoman", "medic"}
+
+var TypeClassMap = map[LobbyType]map[string]int{
+        LobbyTypeHighlander: hlClassMap,
+        LobbyTypeSixes:      sixesClassMap,
+        LobbyTypeFours:      foursClassMap,
+        LobbyTypeUltiduo:    ultiduoClassMap,
+        LobbyTypeBball:      bballClassMap,
+        LobbyTypeDebug:      debugClassMap,
+}
+
+var TypeClassList = map[LobbyType][]string{
+        LobbyTypeHighlander: hlClassList,
+        LobbyTypeSixes:      sixesClassList,
+        LobbyTypeFours:      foursClassList,
+        LobbyTypeUltiduo:    ultiduoClassList,
+        LobbyTypeBball:      bballClassList,
+        LobbyTypeDebug:      debugClassList,
+}
+
+var NumberOfClassesMap = map[LobbyType]int{
+        LobbyTypeHighlander: 9,
+        LobbyTypeSixes:      6,
+        LobbyTypeFours:      4,
+        LobbyTypeUltiduo:    2,
+        LobbyTypeBball:      2,
+        LobbyTypeDebug:      1,
+}
+
+func LobbyGetPlayerSlot(lobbytype LobbyType, teamStr string, classStr string) (int, *helpers.TPError) <span class="cov8" title="1">{
+        team, ok := teamMap[teamStr]
+        if !ok </span><span class="cov8" title="1">{
+                return -1, helpers.NewTPError("Invalid team", -1)
+        }</span>
+
+        <span class="cov8" title="1">class, ok := TypeClassMap[lobbytype][classStr]
+        if !ok </span><span class="cov8" title="1">{
+                return -1, helpers.NewTPError("Invalid class", -1)
+        }</span>
+
+        <span class="cov8" title="1">return team*NumberOfClassesMap[lobbytype] + class, nil</span>
+}
+
+func LobbyGetSlotInfoString(lobbytype LobbyType, slot int) (string, string, *helpers.TPError) <span class="cov0" title="0">{
+        classList := TypeClassList[lobbytype]
+
+        team, class, err := LobbyGetSlotInfo(lobbytype, slot)
+        if err == nil </span><span class="cov0" title="0">{
+                return teamList[team], classList[class], nil
+        }</span>
+        <span class="cov0" title="0">return "", "", err</span>
+}
+
+func LobbyGetSlotInfo(lobbytype LobbyType, slot int) (int, int, *helpers.TPError) <span class="cov0" title="0">{
+        classList := TypeClassList[lobbytype]
+
+        if slot &lt; len(classList) </span><span class="cov0" title="0">{
+                return 0, slot, nil
+        }</span><span class="cov0" title="0"> else if slot &lt; 2*len(classList) </span><span class="cov0" title="0">{
+                return 1, slot - len(classList), nil
+        }</span><span class="cov0" title="0"> else {
+                return 0, 0, helpers.NewTPError("Invalid slot", -1)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "fmt"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/TF2Stadium/Helen/config"
+        "github.com/TF2Stadium/Helen/controllers/broadcaster"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/jinzhu/gorm"
+)
+
+type LobbyType int
+type LobbyState int
+
+const (
+        LobbyTypeSixes      LobbyType = 6
+        LobbyTypeHighlander LobbyType = 9
+        LobbyTypeFours      LobbyType = 4
+        LobbyTypeUltiduo    LobbyType = 3
+        LobbyTypeBball      LobbyType = 2
+        LobbyTypeDebug      LobbyType = 1
+)
+
+const (
+        LobbyStateInitializing LobbyState = 0
+        LobbyStateWaiting      LobbyState = 1
+        LobbyStateReadyingUp   LobbyState = 2
+        LobbyStateInProgress   LobbyState = 3
+        LobbyStateEnded        LobbyState = 5
+)
+
+var stateString = map[LobbyState]string{
+        LobbyStateWaiting:    "Waiting For Players",
+        LobbyStateInProgress: "Lobby in Progress",
+        LobbyStateEnded:      "Lobby Ended",
+}
+
+var FormatMap = map[LobbyType]string{
+        LobbyTypeSixes:      "6s",
+        LobbyTypeHighlander: "Highlander",
+        LobbyTypeFours:      "4v4",
+        LobbyTypeUltiduo:    "Ultiduo",
+        LobbyTypeBball:      "Bball",
+        LobbyTypeDebug:      "Debug",
+}
+
+type LobbySlot struct {
+        ID uint
+        // Lobby    Lobby
+        LobbyId uint
+        // Player   Player
+        PlayerId uint
+        Slot     int
+        Ready    bool
+        InGame   bool
+
+        Team  string
+        Class string
+}
+
+type ServerRecord struct {
+        ID             uint
+        Host           string
+        ServerPassword string
+        RconPassword   string
+}
+
+//Given Lobby IDs are unique, we'll use them for mumble channel names
+type Lobby struct {
+        gorm.Model
+        Mode    string
+        MapName string
+        State   LobbyState
+        Type    LobbyType
+        League  string
+
+        RegionCode string
+        RegionName string
+
+        Mumble bool
+
+        Slots []LobbySlot
+
+        ServerInfo   ServerRecord
+        ServerInfoID uint
+
+        Whitelist int //whitelist.tf ID
+
+        Spectators []Player `gorm:"many2many:spectators_players_lobbies"`
+
+        BannedPlayers []Player `gorm:"many2many:banned_players_lobbies"`
+
+        CreatedBySteamID string
+
+        ReadyUpTimestamp int64 //Stores the timestamp at which the ready up timeout started
+}
+
+func getGamemode(mapName string, lobbyType LobbyType) string <span class="cov8" title="1">{
+        switch </span>{
+        <span class="cov0" title="0">case strings.HasPrefix(mapName, "koth"):
+                if lobbyType == LobbyTypeUltiduo </span><span class="cov0" title="0">{
+                        return "ultiduo"
+                }</span>
+
+                <span class="cov0" title="0">return "koth"</span>
+
+        <span class="cov0" title="0">case strings.HasPrefix(mapName, "ctf"):
+                if lobbyType == LobbyTypeBball </span><span class="cov0" title="0">{
+                        return "bball"
+                }</span>
+
+                <span class="cov0" title="0">return "ctf"</span>
+
+        <span class="cov8" title="1">case strings.HasPrefix(mapName, "cp"):
+                if mapName == "cp_gravelpit" </span><span class="cov0" title="0">{
+                        return "a/d"
+                }</span>
+
+                <span class="cov8" title="1">return "5cp"</span>
+
+        <span class="cov0" title="0">case strings.HasPrefix(mapName, "pl"):
+                return "payload"</span>
+
+        <span class="cov0" title="0">case strings.HasPrefix(mapName, "arena"):
+                return "arena"</span>
+        }
+
+        <span class="cov0" title="0">return "unknown"</span>
+}
+
+func NewLobby(mapName string, lobbyType LobbyType, league string, serverInfo ServerRecord, whitelist int, mumble bool) *Lobby <span class="cov8" title="1">{
+        lobby := &amp;Lobby{
+                Mode:       getGamemode(mapName, lobbyType),
+                Type:       lobbyType,
+                State:      LobbyStateInitializing,
+                League:     league,
+                MapName:    mapName,
+                Whitelist:  whitelist, // that's a strange line
+                Mumble:     mumble,
+                ServerInfo: serverInfo,
+        }
+
+        // Must specify CreatedBy manually if the lobby is created by a player
+
+        return lobby
+}</span>
+
+func (lobby *Lobby) GetPlayerSlotObj(player *Player) (*LobbySlot, error) <span class="cov8" title="1">{
+        slotObj := &amp;LobbySlot{}
+
+        err := db.DB.Where("player_id = ? AND lobby_id = ?", player.ID, lobby.ID).First(slotObj).Error
+
+        return slotObj, err
+}</span>
+
+func (lobby *Lobby) GetPlayerSlot(player *Player) (int, error) <span class="cov8" title="1">{
+        slotObj, err := lobby.GetPlayerSlotObj(player)
+
+        return slotObj.Slot, err
+}</span>
+
+func (lobby *Lobby) GetPlayerIdBySlot(slot int) (uint, error) <span class="cov8" title="1">{
+        slotObj := &amp;LobbySlot{}
+
+        err := db.DB.Where("lobby_id = ? AND slot = ?", lobby.ID, slot).First(slotObj).Error
+
+        return uint(slotObj.PlayerId), err
+}</span>
+
+func (lobby *Lobby) Save() error <span class="cov8" title="1">{
+        var err error
+        if db.DB.NewRecord(lobby) </span><span class="cov8" title="1">{
+                err = db.DB.Create(lobby).Error
+        }</span><span class="cov8" title="1"> else {
+                err = db.DB.Save(lobby).Error
+        }</span>
+
+        <span class="cov8" title="1">lobby.RealAfterSave()
+        return err</span>
+}
+
+func GetLobbyByIdServer(id uint) (*Lobby, *helpers.TPError) <span class="cov8" title="1">{
+        nonExistentLobby := helpers.NewTPError("Lobby not in the database", -1)
+
+        lob := &amp;Lobby{}
+        err := db.DB.Preload("ServerInfo").First(lob, id).Error
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, nonExistentLobby
+        }</span>
+
+        <span class="cov8" title="1">return lob, nil</span>
+}
+
+func GetLobbyById(id uint) (*Lobby, *helpers.TPError) <span class="cov8" title="1">{
+        nonExistentLobby := helpers.NewTPError("Lobby not in the database", -1)
+
+        lob := &amp;Lobby{}
+        err := db.DB.First(lob, id).Error
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, nonExistentLobby
+        }</span>
+
+        <span class="cov8" title="1">return lob, nil</span>
+}
+
+// //Add player to lobby
+func (lobby *Lobby) AddPlayer(player *Player, slot int, team, class string) *helpers.TPError <span class="cov8" title="1">{
+        /* Possible errors while joining
+         * Slot has been filled
+         * Player has already joined a lobby
+         * anything else?
+         */
+
+        lobbyBanError := helpers.NewTPError("The player has been banned from this lobby.", 4)
+        badSlotError := helpers.NewTPError("This slot does not exist.", 3)
+        filledError := helpers.NewTPError("This slot has been filled.", 2)
+
+        if player.ID == 0 </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player not in the database", -1)
+        }</span>
+
+        <span class="cov8" title="1">num := 0
+
+        // It should really be possible to do this query using relations
+        if err := db.DB.Table("banned_players_lobbies").
+                Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).
+                Count(&amp;num).Error; num &gt; 0 || err != nil </span><span class="cov8" title="1">{
+                //helpers.Logger.Debug(fmt.Sprint(err))
+                return lobbyBanError
+        }</span>
+
+        <span class="cov8" title="1">if slot &gt;= 2*NumberOfClassesMap[lobby.Type] || slot &lt; 0 </span><span class="cov8" title="1">{
+                return badSlotError
+        }</span>
+
+        <span class="cov8" title="1">if currLobbyId, err := player.GetLobbyId(); err == nil </span><span class="cov8" title="1">{
+                if currLobbyId != lobby.ID </span><span class="cov8" title="1">{
+                        // if the player is in a different lobby, remove them from that lobby
+                        curLobby, _ := GetLobbyById(currLobbyId)
+                        if curLobby.State == LobbyStateInProgress </span><span class="cov8" title="1">{
+                                sub, _ := NewSub(curLobby.ID, player.SteamId)
+                                db.DB.Save(sub)
+                                BroadcastSubList()
+                        }</span>
+                        <span class="cov8" title="1">curLobby.RemovePlayer(player)</span>
+                }<span class="cov8" title="1"> else {
+                        // assign the player to a new slot
+                        // try to remove them from the old slot (in case they are switching slots)
+                        db.DB.Where("player_id = ? AND lobby_id = ?", player.ID, lobby.ID).Delete(&amp;LobbySlot{})
+                        DisallowPlayer(lobby.ID, player.SteamId)
+                }</span>
+        }
+
+        <span class="cov8" title="1">var count int
+        db.DB.Table("substitutes").Where("lobby_id = ? AND team = ? AND class = ? AND filled = ?", lobby.ID, team, class, false).Count(&amp;count)
+        if count != 0 </span><span class="cov8" title="1">{
+                db.DB.Table("substitutes").Where("lobby_id = ? AND team = ? AND class = ? AND filled = ?", lobby.ID, team, class, false).UpdateColumn("filled", true)
+                FumbleLobbyPlayerJoinedSub(lobby, player, slot)
+        }</span><span class="cov8" title="1"> else if _, err := lobby.GetPlayerIdBySlot(slot); err == nil </span><span class="cov8" title="1">{
+                return filledError
+        }</span><span class="cov8" title="1"> else {
+                FumbleLobbyPlayerJoined(lobby, player, slot)
+        }</span>
+
+        //try to remove them from spectators
+        <span class="cov8" title="1">lobby.RemoveSpectator(player, false)
+
+        newSlotObj := &amp;LobbySlot{
+                PlayerId: player.ID,
+                LobbyId:  lobby.ID,
+                Slot:     slot,
+                Team:     team,
+                Class:    class,
+        }
+
+        db.DB.Create(newSlotObj)
+
+        lobby.OnChange(true)
+        if count != 0 </span><span class="cov8" title="1">{
+                BroadcastSubList()
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (lobby *Lobby) RemovePlayer(player *Player) *helpers.TPError <span class="cov8" title="1">{
+        err := db.DB.Where("player_id = ? AND lobby_id = ?", player.ID, lobby.ID).Delete(&amp;LobbySlot{}).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPError(err.Error(), -1)
+        }</span>
+
+        <span class="cov8" title="1">DisallowPlayer(lobby.ID, player.SteamId)
+        lobby.OnChange(true)
+        return nil</span>
+}
+
+func (lobby *Lobby) BanPlayer(player *Player) <span class="cov8" title="1">{
+        DisallowPlayer(lobby.ID, player.SteamId)
+        db.DB.Model(lobby).Association("BannedPlayers").Append(player)
+}</span>
+
+func (lobby *Lobby) ReadyPlayer(player *Player) *helpers.TPError <span class="cov8" title="1">{
+        err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).UpdateColumn("ready", true).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player is not in the lobby.", 5)
+        }</span>
+        <span class="cov8" title="1">lobby.OnChange(false)
+        return nil</span>
+}
+
+func (lobby *Lobby) UnreadyPlayer(player *Player) *helpers.TPError <span class="cov8" title="1">{
+        err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).UpdateColumn("ready", false).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPError("Player is not in the lobby.", 5)
+        }</span>
+
+        <span class="cov8" title="1">lobby.OnChange(false)
+        return nil</span>
+}
+
+func (lobby *Lobby) RemoveUnreadyPlayers() error <span class="cov8" title="1">{
+        err := db.DB.Where("lobby_id = ? AND ready = ?", lobby.ID, false).Delete(&amp;LobbySlot{}).Error
+        lobby.OnChange(true)
+        return err
+}</span>
+
+func (lobby *Lobby) IsPlayerInGame(player *Player) (bool, error) <span class="cov8" title="1">{
+        var ingame []bool
+        err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).Pluck("in_game", &amp;ingame).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return false, err
+        }</span>
+
+        <span class="cov8" title="1">return (len(ingame) != 0 &amp;&amp; ingame[0]), err</span>
+}
+
+func (lobby *Lobby) IsPlayerReady(player *Player) (bool, *helpers.TPError) <span class="cov8" title="1">{
+        var ready []bool
+        err := db.DB.Table("lobby_slots").Where("lobby_id = ? AND player_id = ?", lobby.ID, player.ID).Pluck("ready", &amp;ready).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return false, helpers.NewTPError("Player is not in the lobby.", 5)
+        }</span>
+        <span class="cov8" title="1">return (len(ready) != 0 &amp;&amp; ready[0]), nil</span>
+}
+
+func (lobby *Lobby) UnreadyAllPlayers() error <span class="cov8" title="1">{
+        err := db.DB.Table("lobby_slots").Where("lobby_id = ?", lobby.ID).UpdateColumn("ready", false).Error
+
+        lobby.OnChange(false)
+        return err
+}</span>
+
+func (lobby *Lobby) ReadyUpTimeLeft() int64 <span class="cov0" title="0">{
+        return int64(lobby.ReadyUpTimestamp - time.Now().Unix())
+}</span>
+
+func (lobby *Lobby) IsEveryoneReady() bool <span class="cov8" title="1">{
+        readyPlayers := 0
+        db.DB.Table("lobby_slots").Where("lobby_id = ? AND ready = ?", lobby.ID, true).Count(&amp;readyPlayers)
+
+        return readyPlayers == 2*NumberOfClassesMap[lobby.Type]
+}</span>
+
+func (lobby *Lobby) AddSpectator(player *Player) *helpers.TPError <span class="cov8" title="1">{
+        err := db.DB.Model(lobby).Association("Spectators").Append(player).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPError(err.Error(), -1)
+        }</span>
+        <span class="cov8" title="1">lobby.OnChange(false)
+        return nil</span>
+}
+
+func (lobby *Lobby) RemoveSpectator(player *Player, broadcast bool) *helpers.TPError <span class="cov8" title="1">{
+        err := db.DB.Model(lobby).Association("Spectators").Delete(player).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return helpers.NewTPError(err.Error(), -1)
+        }</span>
+        <span class="cov8" title="1">if broadcast </span><span class="cov0" title="0">{
+                lobby.OnChange(false)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (lobby *Lobby) GetPlayerNumber() int <span class="cov8" title="1">{
+        count := 0
+        err := db.DB.Table("lobby_slots").Where("lobby_id = ?", lobby.ID).Count(&amp;count).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return 0
+        }</span>
+        <span class="cov8" title="1">return count</span>
+}
+
+func (lobby *Lobby) IsFull() bool <span class="cov0" title="0">{
+        return lobby.GetPlayerNumber() &gt;= 2*NumberOfClassesMap[lobby.Type]
+}</span>
+
+func (lobby *Lobby) IsSlotFilled(slot int) bool <span class="cov0" title="0">{
+        _, err := lobby.GetPlayerIdBySlot(slot)
+        if err != nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov0" title="0">return true</span>
+}
+
+func (lobby *Lobby) SetupServer() error <span class="cov0" title="0">{
+        if lobby.State == LobbyStateEnded </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">err := SetupServer(lobby.ID, lobby.ServerInfo, lobby.Type, lobby.League, lobby.Whitelist, lobby.MapName)
+        return err</span>
+}
+
+func (lobby *Lobby) Close(rpc bool) <span class="cov8" title="1">{
+        db.DB.Table("substitutes").Where("lobby_id = ?", lobby.ID).UpdateColumn("filled", true)
+        db.DB.First(&amp;lobby).UpdateColumn("state", LobbyStateEnded)
+        db.DB.Delete(&amp;lobby.ServerInfo)
+        //db.DB.Exec("DELETE FROM spectators_players_lobbies WHERE lobby_id = ?", lobby.ID)
+        if rpc </span><span class="cov8" title="1">{
+                End(lobby.ID)
+        }</span>
+
+        <span class="cov8" title="1">privateRoom := fmt.Sprintf("%d_private", lobby.ID)
+        broadcaster.SendMessageToRoom(privateRoom, "lobbyLeft", DecorateLobbyLeave(lobby))
+
+        publicRoom := fmt.Sprintf("%d_public", lobby.ID)
+        broadcaster.SendMessageToRoom(publicRoom, "lobbyClosed", DecorateLobbyClosed(lobby))
+
+        BroadcastLobby(lobby)</span>
+}
+
+func (lobby *Lobby) UpdateStats() <span class="cov8" title="1">{
+        var slots []LobbySlot
+        db.DB.Where("lobby_id = ?", lobby.ID).Find(&amp;slots)
+
+        for _, slot := range slots </span><span class="cov8" title="1">{
+                player := &amp;Player{}
+                err := db.DB.First(player, slot.PlayerId).Error
+                if err != nil </span><span class="cov0" title="0">{
+                        helpers.Logger.Critical("%s", err.Error())
+                        return
+                }</span>
+                <span class="cov8" title="1">db.DB.Preload("Stats").First(player, slot.PlayerId)
+                player.Stats.PlayedCountIncrease(lobby.Type)
+                player.Save()</span>
+        }
+        <span class="cov8" title="1">lobby.OnChange(false)</span>
+}
+
+func (lobby *Lobby) setInGameStatus(player *Player, inGame bool) error <span class="cov8" title="1">{
+        err := db.DB.Table("lobby_slots").Where("player_id = ? AND lobby_id = ?", player.ID, lobby.ID).UpdateColumn("in_game", inGame).Error
+
+        lobby.OnChange(false)
+        return err
+}</span>
+
+func (lobby *Lobby) SetInGame(player *Player) error <span class="cov8" title="1">{
+        return lobby.setInGameStatus(player, true)
+}</span>
+
+func (lobby *Lobby) SetNotInGame(player *Player) error <span class="cov8" title="1">{
+        return lobby.setInGameStatus(player, false)
+}</span>
+
+// manually called. Should be called after the change to lobby actually takes effect.
+func (lobby *Lobby) RealAfterSave() <span class="cov8" title="1">{
+        lobby.OnChange(true)
+}</span>
+
+// If base is true, broadcasts the lobby list update
+func (lobby *Lobby) OnChange(base bool) <span class="cov8" title="1">{
+        switch lobby.State </span>{
+        <span class="cov8" title="1">case LobbyStateWaiting, LobbyStateInProgress, LobbyStateReadyingUp:
+                BroadcastLobby(lobby)
+                if base </span><span class="cov8" title="1">{
+                        BroadcastLobbyList()
+                }</span>
+        }
+}
+
+func BroadcastLobby(lobby *Lobby) <span class="cov8" title="1">{
+        //db.DB.Preload("Spectators").First(&amp;lobby, lobby.ID)
+        room := strconv.FormatUint(uint64(lobby.ID), 10)
+
+        broadcaster.SendMessageToRoom(fmt.Sprintf("%s_public", room), "lobbyData", DecorateLobbyData(lobby, true))
+}</span>
+
+func BroadcastLobbyToUser(lobby *Lobby, steamid string) <span class="cov0" title="0">{
+        //db.DB.Preload("Spectators").First(&amp;lobby, lobby.ID)
+        broadcaster.SendMessage(steamid, "lobbyData", DecorateLobbyData(lobby, true))
+}</span>
+
+func BroadcastLobbyList() <span class="cov8" title="1">{
+        var lobbies []Lobby
+        db.DB.Where("state = ?", LobbyStateWaiting).Order("id desc").Find(&amp;lobbies)
+        broadcaster.SendMessageToRoom(
+                fmt.Sprintf("%s_public", config.Constants.GlobalChatRoom),
+                "lobbyListData", DecorateLobbyListData(lobbies))
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io/ioutil"
+        "path/filepath"
+
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/bitly/go-simplejson"
+)
+
+type LobbyFormat struct {
+        //gorm.Model -- not in a database yet
+        Name       string
+        PrettyName string
+        Important  bool
+}
+
+type LobbyMapFormat struct {
+        //gorm.Model -- not in a database yet
+        Format     *LobbyFormat
+        Importance int
+}
+
+type LobbyMap struct {
+        //gorm.Model -- not in a database yet
+        Name    string
+        Formats []*LobbyMapFormat `gorm:"many2many:lobby_map_formats"`
+}
+
+func (m *LobbyMap) GetFormat(formatName string) (*LobbyMapFormat, bool) <span class="cov8" title="1">{
+        for _, mapFormat := range m.Formats </span><span class="cov8" title="1">{
+                if mapFormat.Format.Name == formatName </span><span class="cov8" title="1">{
+                        return mapFormat, true
+                }</span>
+        }
+        <span class="cov8" title="1">if format, ok := GetLobbyFormat(formatName); ok </span><span class="cov8" title="1">{
+                return &amp;LobbyMapFormat{
+                        Format:     format,
+                        Importance: 0,
+                }, true
+        }</span>
+        <span class="cov0" title="0">return nil, false</span>
+}
+
+// TODO make int?
+type MapType string
+
+type LobbyLeagueDescription struct {
+        //gorm.Model -- not in a database yet
+        MapType     MapType
+        Description string
+}
+
+type LobbyLeagueFormat struct {
+        //gorm.Model -- not in a database yet
+        Format *LobbyFormat
+        Used   bool
+}
+
+type LobbyLeague struct {
+        //gorm.Model -- not in a database yet
+        Name         string
+        PrettyName   string
+        Descriptions []*LobbyLeagueDescription `gorm:"many2many:lobby_league_descriptions"`
+        Formats      []*LobbyLeagueFormat      `gorm:"many2many:lobby_league_formats"`
+}
+
+type LobbyWhitelist struct {
+        //gorm.Model -- not in a database yet
+        ID         int
+        PrettyName string
+        League     *LobbyLeague
+        Format     *LobbyFormat
+}
+
+var LobbyFormats []LobbyFormat
+var lobbyFormatFromName map[string]int
+
+var LobbyMaps []LobbyMap
+var lobbyMapFromName map[string]int
+
+var LobbyLeagues []LobbyLeague
+var lobbyLeagueFromName map[string]int
+
+var LobbyWhitelists []LobbyWhitelist
+var lobbyWhitelistFromID map[int]int
+
+func GetLobbyFormat(formatName string) (*LobbyFormat, bool) <span class="cov8" title="1">{
+        if format, ok := lobbyFormatFromName[formatName]; ok </span><span class="cov8" title="1">{
+                return &amp;LobbyFormats[format], true
+        }</span>
+        <span class="cov0" title="0">return nil, false</span>
+}
+
+func GetLobbyMap(mapName string) (*LobbyMap, bool) <span class="cov8" title="1">{
+        if amap, ok := lobbyMapFromName[mapName]; ok </span><span class="cov8" title="1">{
+                return &amp;LobbyMaps[amap], true
+        }</span>
+        <span class="cov0" title="0">return nil, false</span>
+}
+
+func GetLobbyLeague(leagueName string) (*LobbyLeague, bool) <span class="cov8" title="1">{
+        if league, ok := lobbyLeagueFromName[leagueName]; ok </span><span class="cov8" title="1">{
+                return &amp;LobbyLeagues[league], true
+        }</span>
+        <span class="cov0" title="0">return nil, false</span>
+}
+
+func GetLobbyWhitelist(whitelistId int) (*LobbyWhitelist, bool) <span class="cov0" title="0">{
+        if whitelist, ok := lobbyWhitelistFromID[whitelistId]; ok </span><span class="cov0" title="0">{
+                return &amp;LobbyWhitelists[whitelist], true
+        }</span>
+        <span class="cov0" title="0">return nil, false</span>
+}
+
+func InitializeLobbySettings(fileName string) <span class="cov0" title="0">{
+        realPath, err := filepath.Abs(fileName)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Fatal(err.Error())
+                return
+        }</span>
+        
+        <span class="cov0" title="0">err = LoadLobbySettingsFromFile(realPath)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Fatal(err.Error())
+        }</span>
+}
+
+func LoadLobbySettingsFromFile(fileName string) error <span class="cov0" title="0">{
+        data, err := ioutil.ReadFile(fileName)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">return LoadLobbySettings(data)</span>
+}
+
+func LoadLobbySettings(data []byte) error <span class="cov8" title="1">{
+        var args struct {
+                Formats []struct {
+                        Name       string `json:"name"`
+                        PrettyName string `json:"prettyName"`
+                        Important  bool   `json:"important"`
+                } `json:"formats"`
+                Maps []struct {
+                        Name    string         `json:"name"`
+                        Formats map[string]int `json:"formats"`
+                } `json:"maps"`
+                Leagues []struct {
+                        Name         string            `json:"name"`
+                        PrettyName   string            `json:"prettyName"`
+                        Descriptions map[string]string `json:"descriptions"`
+                        Formats      map[string]bool   `json:"formats"`
+                } `json:"leagues"`
+                Whitelists []struct {
+                        ID         int    `json:"id"`
+                        PrettyName string `json:"prettyName"`
+                        League     string `json:"league"`
+                        Format     string `json:"format"`
+                } `json:"whitelists"`
+        }
+
+        err := json.Unmarshal(data, &amp;args)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+                <span class="cov0" title="0">return err</span>
+        }
+
+        // formats
+        <span class="cov8" title="1">LobbyFormats = make([]LobbyFormat, len(args.Formats))
+        lobbyFormatFromName = make(map[string]int)
+        for i, format := range args.Formats </span><span class="cov8" title="1">{
+                LobbyFormats[i] = LobbyFormat{
+                        Name:       format.Name,
+                        PrettyName: format.PrettyName,
+                        Important:  format.Important,
+                }
+                lobbyFormatFromName[format.Name] = i
+        }</span>
+
+        // maps
+        <span class="cov8" title="1">LobbyMaps = make([]LobbyMap, len(args.Maps))
+        lobbyMapFromName = make(map[string]int)
+        for i, amap := range args.Maps </span><span class="cov8" title="1">{
+                lobbyMap := LobbyMap{
+                        Name:    amap.Name,
+                        Formats: make([]*LobbyMapFormat, 0, len(amap.Formats)),
+                }
+                for name, importance := range amap.Formats </span><span class="cov8" title="1">{
+                        if lobbyFormat, ok := GetLobbyFormat(name); ok </span><span class="cov8" title="1">{
+                                lobbyMap.Formats = append(lobbyMap.Formats, &amp;LobbyMapFormat{
+                                        Format:     lobbyFormat,
+                                        Importance: importance,
+                                })
+                        }</span><span class="cov0" title="0"> else {
+                                return errors.New(fmt.Sprintf("Referenced a non existing format %q", name))
+                        }</span>
+                }
+
+                <span class="cov8" title="1">LobbyMaps[i] = lobbyMap
+                lobbyMapFromName[amap.Name] = i</span>
+        }
+
+        // leagues
+        <span class="cov8" title="1">LobbyLeagues = make([]LobbyLeague, len(args.Leagues))
+        lobbyLeagueFromName = make(map[string]int)
+        for i, league := range args.Leagues </span><span class="cov8" title="1">{
+                lobbyLeague := LobbyLeague{
+                        Name:         league.Name,
+                        PrettyName:   league.PrettyName,
+                        Descriptions: make([]*LobbyLeagueDescription, 0, len(league.Descriptions)),
+                        Formats:      make([]*LobbyLeagueFormat, 0, len(league.Formats)),
+                }
+                for atype, description := range league.Descriptions </span><span class="cov8" title="1">{
+                        lobbyLeagueDescription := &amp;LobbyLeagueDescription{
+                                MapType:     MapType(atype),
+                                Description: description,
+                        }
+                        lobbyLeague.Descriptions = append(lobbyLeague.Descriptions, lobbyLeagueDescription)
+                }</span>
+                <span class="cov8" title="1">for name, used := range league.Formats </span><span class="cov8" title="1">{
+                        if lobbyFormat, ok := GetLobbyFormat(name); ok </span><span class="cov8" title="1">{
+                                lobbyLeagueFormat := &amp;LobbyLeagueFormat{
+                                        Format: lobbyFormat,
+                                        Used:   used,
+                                }
+                                lobbyLeague.Formats = append(lobbyLeague.Formats, lobbyLeagueFormat)
+                        }</span><span class="cov0" title="0"> else {
+                                return errors.New(fmt.Sprintf("Referenced a non existing format %q", name))
+                        }</span>
+                }
+
+                <span class="cov8" title="1">LobbyLeagues[i] = lobbyLeague
+                lobbyLeagueFromName[league.Name] = i</span>
+        }
+
+        // whitelists
+        <span class="cov8" title="1">LobbyWhitelists = make([]LobbyWhitelist, len(args.Whitelists))
+        lobbyWhitelistFromID = make(map[int]int)
+        for i, whitelist := range args.Whitelists </span><span class="cov8" title="1">{
+                if lobbyLeague, ok := GetLobbyLeague(whitelist.League); ok </span><span class="cov8" title="1">{
+                        if lobbyFormat, ok := GetLobbyFormat(whitelist.Format); ok </span><span class="cov8" title="1">{
+                                lobbyWhitelist := LobbyWhitelist{
+                                        ID:         whitelist.ID,
+                                        PrettyName: whitelist.PrettyName,
+                                        League:     lobbyLeague,
+                                        Format:     lobbyFormat,
+                                }
+
+                                LobbyWhitelists[i] = lobbyWhitelist
+                                lobbyWhitelistFromID[whitelist.ID] = i
+                        }</span><span class="cov0" title="0"> else {
+                                return errors.New(fmt.Sprintf("Referenced a non existing format %q", whitelist.Format))
+                        }</span>
+                }<span class="cov0" title="0"> else {
+                        return errors.New(fmt.Sprintf("Referenced a non existing league %q", whitelist.League))
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func LobbySettingsToJson() *simplejson.Json <span class="cov8" title="1">{
+        j := simplejson.New()
+
+        // formats
+        </span><span class="cov8" title="1">{
+                formats := simplejson.New()
+
+                formatList := make([]*simplejson.Json, len(LobbyFormats))
+                for i, format := range LobbyFormats </span><span class="cov8" title="1">{
+                        f := simplejson.New()
+                        f.Set("value", format.Name)
+                        f.Set("title", format.PrettyName)
+                        f.Set("important", format.Important)
+
+                        formatList[i] = f
+                }</span>
+                <span class="cov8" title="1">formats.Set("key", "type")
+                formats.Set("title", "Format")
+                formats.Set("options", formatList)
+
+                j.Set("formats", formats)</span>
+        }
+
+        // maps
+        <span class="cov8" title="1">{
+                maps := simplejson.New()
+
+                mapList := make([]*simplejson.Json, len(LobbyMaps))
+                for i, amap := range LobbyMaps </span><span class="cov8" title="1">{
+                        f := simplejson.New()
+                        f.Set("value", amap.Name)
+                        for _, mapFormat := range amap.Formats </span><span class="cov8" title="1">{
+                                f.Set(mapFormat.Format.Name, mapFormat.Importance)
+                        }</span>
+
+                        <span class="cov8" title="1">mapList[i] = f</span>
+                }
+                <span class="cov8" title="1">maps.Set("key", "mapName")
+                maps.Set("title", "Map")
+                maps.Set("options", mapList)
+
+                j.Set("maps", maps)</span>
+        }
+
+        // leagues
+        <span class="cov8" title="1">{
+                leagues := simplejson.New()
+
+                leagueList := make([]*simplejson.Json, len(LobbyLeagues))
+                for i, league := range LobbyLeagues </span><span class="cov8" title="1">{
+                        leagueDescs := simplejson.New()
+                        for _, leagueDesc := range league.Descriptions </span><span class="cov8" title="1">{
+                                leagueDescs.Set(string(leagueDesc.MapType), leagueDesc.Description)
+                        }</span>
+
+                        <span class="cov8" title="1">f := simplejson.New()
+                        f.Set("value", league.Name)
+                        f.Set("title", league.PrettyName)
+                        f.Set("descriptions", leagueDescs)
+                        for _, leagueFormat := range league.Formats </span><span class="cov8" title="1">{
+                                f.Set(leagueFormat.Format.Name, leagueFormat.Used)
+                        }</span>
+
+                        <span class="cov8" title="1">leagueList[i] = f</span>
+                }
+                <span class="cov8" title="1">leagues.Set("key", "league")
+                leagues.Set("title", "League")
+                leagues.Set("options", leagueList)
+
+                j.Set("leagues", leagues)</span>
+        }
+
+        // whitelists
+        <span class="cov8" title="1">{
+                whitelists := simplejson.New()
+
+                whitelistList := make([]*simplejson.Json, len(LobbyWhitelists))
+                for i, whitelist := range LobbyWhitelists </span><span class="cov8" title="1">{
+                        f := simplejson.New()
+                        f.Set("value", whitelist.ID)
+                        f.Set("title", whitelist.PrettyName)
+                        f.Set("league", whitelist.League.Name)
+                        f.Set("format", whitelist.Format.Name)
+
+                        whitelistList[i] = f
+                }</span>
+                <span class="cov8" title="1">whitelists.Set("key", "whitelist")
+                whitelists.Set("title", "Whitelist")
+                whitelists.Set("options", whitelistList)
+
+                j.Set("whitelists", whitelists)</span>
+        }
+
+        <span class="cov8" title="1">return j</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "fmt"
+        "strconv"
+
+        "github.com/TF2Stadium/Helen/config"
+        db "github.com/TF2Stadium/Helen/database"
+)
+
+type SlotDetails struct {
+        Filled bool           `json:"filled"`
+        Player *PlayerSummary `json:"player,omitempty"`
+        Ready  *bool          `json:"ready,omitempty"`
+        InGame *bool          `json:"ingame,omitempty"`
+}
+
+type ClassDetails struct {
+        Blu   SlotDetails `json:"blu"`
+        Class string      `json:"class"`
+        Red   SlotDetails `json:"red"`
+}
+
+type SpecDetails struct {
+        Name    string `json:"name,omitempty"`
+        SteamID string `json:"steamid,omitempty"`
+}
+
+type LobbyData struct {
+        ID         uint   `json:"id"`
+        Mode       string `json:"gamemode"`
+        Type       string `json:"type"`
+        Players    int    `json:"players"`
+        Map        string `json:"map"`
+        League     string `json:"league"`
+        Mumble     bool   `json:"mumbleRequired"`
+        MaxPlayers int    `json:"maxPlayers"`
+
+        Region struct {
+                Name string `json:"name"`
+                Code string `json:"code"`
+        } `json:"region"`
+
+        Classes []ClassDetails `json:"classes"`
+
+        Leader      PlayerSummary `json:"leader"`
+        CreatedAt   int64         `json:"createdAt"`
+        State       int           `json:"state"`
+        WhitelistID int           `json:"whitelistId"`
+
+        Spectators []SpecDetails `json:"spectators,omitempty"`
+}
+
+type LobbyListData struct {
+        Lobbies []LobbyData `json:"lobbies,omitempty"`
+}
+
+type LobbyConnectData struct {
+        ID   uint   `json:"id"`
+        Time int64  `json:"time"`
+        Pass string `json:"password"`
+
+        Game struct {
+                Host string `json:"host"`
+        } `json:"game"`
+
+        Mumble struct {
+                Address  string `json:"address"`
+                Nick     string `json:"nick"`
+                Port     string `json:"port"`
+                Password string `json:"password"`
+                Channel  string `json:"channel"`
+        } `json:"mumble"`
+}
+
+type LobbyEvent struct {
+        ID uint `json:"id"`
+}
+
+func decorateSlotDetails(lobby *Lobby, slot int, includeDetails bool) SlotDetails <span class="cov8" title="1">{
+        playerId, err := lobby.GetPlayerIdBySlot(slot)
+        j := SlotDetails{Filled: err == nil}
+
+        if err == nil &amp;&amp; includeDetails </span><span class="cov8" title="1">{
+                var player Player
+                db.DB.First(&amp;player, playerId)
+                db.DB.Preload("Stats").First(&amp;player, player.ID)
+
+                summary := DecoratePlayerSummary(&amp;player)
+                j.Player = &amp;summary
+
+                ready, _ := lobby.IsPlayerReady(&amp;player)
+                j.Ready = &amp;ready
+
+                ingame, _ := lobby.IsPlayerInGame(&amp;player)
+                j.InGame = &amp;ingame
+        }</span>
+
+        <span class="cov8" title="1">return j</span>
+}
+
+func DecorateLobbyData(lobby *Lobby, includeDetails bool) LobbyData <span class="cov8" title="1">{
+        lobbyJs := LobbyData{
+                ID:      lobby.ID,
+                Mode:    lobby.Mode,
+                Type:    FormatMap[lobby.Type],
+                Players: lobby.GetPlayerNumber(),
+                Map:     lobby.MapName,
+                League:  lobby.League,
+                Mumble:  lobby.Mumble,
+        }
+
+        lobbyJs.Region.Name = lobby.RegionName
+        lobbyJs.Region.Code = lobby.RegionCode
+
+        var classList = TypeClassList[lobby.Type]
+
+        classes := make([]ClassDetails, len(classList))
+        lobbyJs.MaxPlayers = NumberOfClassesMap[lobby.Type] * 2
+
+        for slot, className := range classList </span><span class="cov8" title="1">{
+                class := ClassDetails{
+                        Red:   decorateSlotDetails(lobby, slot, includeDetails),
+                        Blu:   decorateSlotDetails(lobby, slot+NumberOfClassesMap[lobby.Type], includeDetails),
+                        Class: className,
+                }
+
+                classes[slot] = class
+        }</span>
+
+        <span class="cov8" title="1">lobbyJs.Classes = classes
+
+        if !includeDetails </span><span class="cov0" title="0">{
+                return lobbyJs
+        }</span>
+
+        <span class="cov8" title="1">var leader Player
+        db.DB.Where("steam_id = ?", lobby.CreatedBySteamID).First(&amp;leader)
+
+        lobbyJs.Leader = DecoratePlayerSummary(&amp;leader)
+        lobbyJs.CreatedAt = lobby.CreatedAt.Unix()
+        lobbyJs.State = int(lobby.State)
+        lobbyJs.WhitelistID = lobby.Whitelist
+
+        var specIDs []uint
+        db.DB.Table("spectators_players_lobbies").Where("lobby_id = ?", lobby.ID).Pluck("player_id", &amp;specIDs)
+
+        spectators := make([]SpecDetails, len(specIDs))
+
+        for i, spectatorID := range specIDs </span><span class="cov0" title="0">{
+                specPlayer := &amp;Player{}
+                db.DB.First(specPlayer, spectatorID)
+
+                specJs := SpecDetails{
+                        Name:    specPlayer.Name,
+                        SteamID: specPlayer.SteamId,
+                }
+
+                spectators[i] = specJs
+        }</span>
+
+        <span class="cov8" title="1">lobbyJs.Spectators = spectators
+
+        return lobbyJs</span>
+}
+
+func DecorateLobbyListData(lobbies []Lobby) LobbyListData <span class="cov8" title="1">{
+        if len(lobbies) == 0 </span><span class="cov8" title="1">{
+                return LobbyListData{}
+        }</span>
+
+        <span class="cov0" title="0">var lobbyList = make([]LobbyData, len(lobbies))
+
+        for i, lobby := range lobbies </span><span class="cov0" title="0">{
+                lobbyData := DecorateLobbyData(&amp;lobby, false)
+                lobbyList[i] = lobbyData
+        }</span>
+
+        <span class="cov0" title="0">listObj := LobbyListData{lobbyList}
+
+        return listObj</span>
+}
+
+func sanitize(name string) string <span class="cov0" title="0">{
+        var final string
+        for _, c := range name </span><span class="cov0" title="0">{
+                if c &gt;= ' ' &amp;&amp; c &lt;= '~' </span><span class="cov0" title="0">{
+                        final += string(c)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return final</span>
+}
+
+func DecorateLobbyConnect(lobby *Lobby, name, class string) LobbyConnectData <span class="cov0" title="0">{
+        l := LobbyConnectData{}
+        l.ID = lobby.ID
+        l.Time = lobby.CreatedAt.Unix()
+        l.Pass = lobby.ServerInfo.ServerPassword
+
+        l.Game.Host = lobby.ServerInfo.Host
+
+        l.Mumble.Address = config.Constants.MumbleAddr
+        l.Mumble.Port = config.Constants.MumblePort
+        l.Mumble.Password = config.Constants.MumblePassword
+        l.Mumble.Channel = "match" + strconv.FormatUint(uint64(lobby.ID), 10)
+        l.Mumble.Nick = fmt.Sprintf("%s_%s", sanitize(name), class)
+
+        return l
+}</span>
+
+func DecorateLobbyJoin(lobby *Lobby) LobbyEvent <span class="cov0" title="0">{
+        return LobbyEvent{lobby.ID}
+}</span>
+
+func DecorateLobbyLeave(lobby *Lobby) LobbyEvent <span class="cov8" title="1">{
+        return LobbyEvent{lobby.ID}
+}</span>
+
+func DecorateLobbyClosed(lobby *Lobby) LobbyEvent <span class="cov8" title="1">{
+        return LobbyEvent{lobby.ID}
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "time"
+
+        "github.com/TF2Stadium/Helen/config"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/Helen/helpers/authority"
+        "github.com/TF2Stadium/PlayerStatsScraper"
+        "github.com/jinzhu/gorm"
+)
+
+// BANS
+
+type PlayerBanType int
+
+const (
+        PlayerBanJoin PlayerBanType = iota
+        PlayerBanCreate
+        PlayerBanChat
+        PlayerBanFull
+)
+
+type PlayerBan struct {
+        gorm.Model
+        PlayerID uint
+        Type     PlayerBanType
+        Until    time.Time
+        Reason   string
+        Active   bool `sql:"default:true"`
+}
+
+// SETTINGS
+
+type PlayerSetting struct {
+        ID       uint
+        Key      string
+        Value    string `sql:"size:65535"`
+        PlayerID uint
+}
+
+type Player struct {
+        gorm.Model
+        Debug   bool   //true if player is a dummy one.
+        SteamId string `sql:"unique"` // Players steam ID
+        Stats   PlayerStats
+        StatsID uint
+
+        // info from steam api
+        Avatar     string
+        Profileurl string
+        GameHours  int
+        Name       string             // Player name
+        Role       authority.AuthRole `sql:"default:0"` // Role is player by default
+
+        Settings []PlayerSetting
+}
+
+func NewPlayer(steamId string) (*Player, error) <span class="cov8" title="1">{
+        player := &amp;Player{SteamId: steamId}
+
+        if !config.Constants.SteamApiMockUp </span><span class="cov0" title="0">{
+                player.Stats = NewPlayerStats()
+
+                err := player.UpdatePlayerInfo()
+                if err != nil </span><span class="cov0" title="0">{
+                        return &amp;Player{}, err
+                }</span>
+        }<span class="cov8" title="1"> else {
+                player.Stats = PlayerStats{}
+        }</span>
+
+        <span class="cov8" title="1">return player, nil</span>
+}
+
+func (player *Player) Save() error <span class="cov8" title="1">{
+        var err error
+        if db.DB.NewRecord(player) </span><span class="cov8" title="1">{
+                err = db.DB.Create(player).Error
+        }</span><span class="cov8" title="1"> else {
+                err = db.DB.Save(player).Error
+        }</span>
+        <span class="cov8" title="1">return err</span>
+}
+
+func GetPlayerBySteamId(steamid string) (*Player, *helpers.TPError) <span class="cov8" title="1">{
+        var player = Player{}
+        err := db.DB.Where("steam_id = ?", steamid).First(&amp;player).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, helpers.NewTPError("Player is not in the database", -1)
+        }</span>
+        <span class="cov8" title="1">return &amp;player, nil</span>
+}
+
+func GetPlayerWithStats(steamid string) (*Player, *helpers.TPError) <span class="cov0" title="0">{
+        var player = Player{}
+        err := db.DB.Where("steam_id = ?", steamid).Preload("Stats").First(&amp;player).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, helpers.NewTPError("Player is not in the database", -1)
+        }</span>
+        <span class="cov0" title="0">return &amp;player, nil</span>
+}
+
+func (player *Player) GetLobbyId() (uint, *helpers.TPError) <span class="cov8" title="1">{
+        playerSlot := &amp;LobbySlot{}
+        err := db.DB.Joins("INNER JOIN lobbies ON lobbies.id = lobby_slots.lobby_id").
+                Where("lobby_slots.player_id = ? AND lobbies.state &lt;&gt; ?", player.ID, LobbyStateEnded).
+                Find(playerSlot).Error
+
+        // if the player is not in any lobby, return error
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, helpers.NewTPError("Player not in any lobby", 1)
+        }</span>
+
+        <span class="cov8" title="1">return playerSlot.LobbyId, nil</span>
+}
+
+func (player *Player) IsSpectatingId(lobbyid uint) bool <span class="cov8" title="1">{
+        count := 0
+        err := db.DB.Table("spectators_players_lobbies").Where("player_id = ? AND lobby_id = ?", player.ID, lobbyid).Count(&amp;count).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return count != 0</span>
+}
+
+func (player *Player) GetSpectatingIds() ([]uint, *helpers.TPError) <span class="cov8" title="1">{
+        var ids []uint
+        err := db.DB.Model(&amp;Lobby{}).
+                Joins("INNER JOIN spectators_players_lobbies l ON l.lobby_id = lobbies.id").
+                Where("l.player_id = ? AND lobbies.state &lt;&gt; ?", player.ID, LobbyStateEnded).
+                Pluck("id", &amp;ids).Error
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, helpers.NewTPError(err.Error(), 1)
+        }</span>
+
+        <span class="cov8" title="1">return ids, nil</span>
+}
+
+func (player *Player) UpdatePlayerInfo() error <span class="cov0" title="0">{
+        if config.Constants.SteamApiMockUp </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">scraper.SetSteamApiKey(config.Constants.SteamDevApiKey)
+        p, _ := GetPlayerBySteamId(player.SteamId)
+
+        if p != nil </span><span class="cov0" title="0">{
+                *player = *p
+        }</span>
+
+        <span class="cov0" title="0">playerInfo, infoErr := scraper.GetPlayerInfo(player.SteamId)
+        if infoErr != nil </span><span class="cov0" title="0">{
+                return infoErr
+        }</span>
+
+        // profile state is 1 when the player have a steam community profile
+        <span class="cov0" title="0">if playerInfo.Profilestate == 1 &amp;&amp; playerInfo.Visibility == "public" </span><span class="cov0" title="0">{
+                pHours, hErr := scraper.GetTF2Hours(player.SteamId)
+
+                if hErr != nil </span><span class="cov0" title="0">{
+                        return hErr
+                }</span>
+
+                <span class="cov0" title="0">player.GameHours = pHours</span>
+        }
+
+        <span class="cov0" title="0">player.Profileurl = playerInfo.Profileurl
+        player.Avatar = playerInfo.Avatar
+        player.Name = playerInfo.Name
+
+        return nil</span>
+}
+
+func (player *Player) SetSetting(key string, value string) error <span class="cov8" title="1">{
+        setting := PlayerSetting{}
+        err := db.DB.Where("player_id = ? AND key = ?", player.ID, key).First(&amp;setting).Error
+
+        setting.PlayerID = player.ID
+        setting.Key = key
+        setting.Value = value
+
+        err = db.DB.Save(&amp;setting).Error
+
+        return err
+}</span>
+
+func (player *Player) GetSetting(key string) (PlayerSetting, error) <span class="cov8" title="1">{
+        setting := PlayerSetting{}
+        err := db.DB.Where("player_id = ? AND key = ?", player.ID, key).First(&amp;setting).Error
+
+        return setting, err
+}</span>
+
+func (player *Player) GetSettings() ([]PlayerSetting, error) <span class="cov8" title="1">{
+        var settings []PlayerSetting
+        err := db.DB.Where("player_id = ?", player.ID).Find(&amp;settings).Error
+
+        return settings, err
+}</span>
+
+func (player *Player) IsBannedWithTime(t PlayerBanType) (bool, time.Time) <span class="cov8" title="1">{
+        ban := &amp;PlayerBan{}
+        err := db.DB.Where("type = ? AND until &gt; now() AND player_id = ? AND active = TRUE", t, player.ID).
+                Order("until desc").First(ban).Error
+        if err != nil </span><span class="cov8" title="1">{
+                return false, time.Time{}
+        }</span>
+
+        <span class="cov8" title="1">return true, ban.Until</span>
+}
+
+func (player *Player) IsBanned(t PlayerBanType) bool <span class="cov8" title="1">{
+        res, _ := player.IsBannedWithTime(t)
+        return res
+}</span>
+
+func (player *Player) BanUntil(tim time.Time, t PlayerBanType, reason string) error <span class="cov8" title="1">{
+        ban := PlayerBan{
+                PlayerID: player.ID,
+                Type:     t,
+                Until:    tim,
+                Reason:   reason,
+        }
+
+        return db.DB.Create(&amp;ban).Error
+}</span>
+
+func (player *Player) Unban(t PlayerBanType) error <span class="cov8" title="1">{
+        return db.DB.Model(&amp;PlayerBan{}).Where("player_id = ? AND type = ? AND active = TRUE", player.ID, t).
+                Update("active", "FALSE").Error
+}</span>
+
+func (player *Player) GetActiveBans() ([]*PlayerBan, error) <span class="cov8" title="1">{
+        var bans []*PlayerBan
+        err := db.DB.Where("player_id = ? AND active = TRUE AND until &gt; now()", player.ID).Find(&amp;bans).Error
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return bans, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "github.com/TF2Stadium/Helen/database"
+)
+
+type PlayerStats struct {
+        ID                    uint `json:"-"`
+        PlayedSixesCount      int  `sql:"played_sixes_count",default:"0"`
+        PlayedHighlanderCount int  `sql:"played_highlander_count",default:"0"`
+        PlayedFoursCount      int  `sql:"played_fours_count",json:"playedFoursCount"`
+        PlayedUltiduoCount    int  `sql:"played_ultiduo_count",json:"playedUltiduoCount"`
+        PlayedBballCount      int  `sql:"played_bball_count",json:"playedBballCount"`
+}
+
+func NewPlayerStats() PlayerStats <span class="cov0" title="0">{
+        stats := PlayerStats{}
+
+        return stats
+}</span>
+
+func (ps *PlayerStats) PlayedCountIncrease(lt LobbyType) <span class="cov8" title="1">{
+        switch lt </span>{
+        <span class="cov8" title="1">case LobbyTypeSixes:
+                ps.PlayedSixesCount += 1</span>
+        <span class="cov0" title="0">case LobbyTypeHighlander:
+                ps.PlayedHighlanderCount += 1</span>
+        <span class="cov0" title="0">case LobbyTypeFours:
+                ps.PlayedFoursCount += 1</span>
+        <span class="cov0" title="0">case LobbyTypeBball:
+                ps.PlayedBballCount += 1</span>
+        <span class="cov0" title="0">case LobbyTypeUltiduo:
+                ps.PlayedUltiduoCount += 1</span>
+        }
+        <span class="cov8" title="1">database.DB.Save(ps)</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/bitly/go-simplejson"
+)
+
+type PlayerSummary struct {
+        Avatar        string   `json:"avatar"`
+        GameHours     int      `json:"gameHours"`
+        ProfileURL    string   `json:"profileUrl"`
+        LobbiesPlayed int      `json:"lobbiesPlayed"`
+        SteamID       string   `json:"steamid"`
+        Name          string   `json:"name"`
+        Tags          []string `json:"tags"`
+        Role          string   `json:"role"`
+}
+
+type Stats struct {
+        LobbiesPlayed int `json:"lobbiesPlayed"`
+
+        Sixes      int `json:"playedSixesCount"`
+        Highlander int `json:"playedHighlanderCount"`
+        // Fours      int `json:"playedFoursCount"`
+        // Ultiduo    int `json:"playedUltiduoCount"`
+        // Bball      int `json:"playedBballCount"`
+        Substitutes int `json:"substitutes"`
+}
+
+type PlayerProfile struct {
+        Stats Stats `json:"stats"`
+
+        CreatedAt int64  `json:"createdAt"`
+        GameHours int    `json:"gameHours"`
+        SteamID   string `json:"steamid"`
+        Avatar    string `json:"avatar"`
+        Name      string `json:"name"`
+        ID        int    `json:"id"`
+        Role      string `json:"role"`
+}
+
+func DecoratePlayerSettingsJson(settings []PlayerSetting) *simplejson.Json <span class="cov0" title="0">{
+        json := simplejson.New()
+
+        for _, obj := range settings </span><span class="cov0" title="0">{
+                json.Set(obj.Key, obj.Value)
+        }</span>
+
+        <span class="cov0" title="0">return json</span>
+}
+
+func decoratePlayerTags(p *Player) []string <span class="cov8" title="1">{
+        tags := []string{helpers.RoleNames[p.Role]}
+        return tags
+}</span>
+
+func DecoratePlayerProfileJson(p *Player) PlayerProfile <span class="cov0" title="0">{
+        profile := PlayerProfile{}
+
+        s := Stats{}
+        s.Sixes = p.Stats.PlayedHighlanderCount
+        s.Highlander = p.Stats.PlayedSixesCount
+        var subCount int
+        db.DB.Table("substitutes").Where("steam_id = ?", p.SteamId).Count(&amp;subCount)
+        s.Substitutes = subCount
+
+        profile.Stats = s
+
+        // info
+        profile.CreatedAt = p.CreatedAt.Unix()
+        profile.GameHours = p.GameHours
+        profile.SteamID = p.SteamId
+        profile.Avatar = p.Avatar
+        profile.Name = p.Name
+        profile.Role = helpers.RoleNames[p.Role]
+
+        // TODO ban info
+
+        return profile
+}</span>
+
+func DecoratePlayerSummary(p *Player) PlayerSummary <span class="cov8" title="1">{
+        return PlayerSummary{
+                Avatar:        p.Avatar,
+                GameHours:     p.GameHours,
+                ProfileURL:    p.Profileurl,
+                LobbiesPlayed: p.Stats.PlayedHighlanderCount + p.Stats.PlayedSixesCount,
+                SteamID:       p.SteamId,
+                Name:          p.Name,
+                Tags:          decoratePlayerTags(p),
+                Role:          helpers.RoleNames[p.Role],
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">// Copyright (C) 2015  TF2Stadium
+// Use of this source code is governed by the GPLv3
+// that can be found in the COPYING file.
+
+package models
+
+import (
+        "net/rpc"
+        "sync"
+        "time"
+
+        "github.com/TF2Stadium/Helen/config"
+        "github.com/TF2Stadium/Helen/helpers"
+)
+
+type ServerBootstrap struct {
+        LobbyId       uint
+        Info          ServerRecord
+        Players       []string
+        BannedPlayers []string
+}
+
+type Args struct {
+        Id        uint
+        Info      ServerRecord
+        Type      LobbyType
+        League    string
+        Whitelist int
+        Map       string
+        SteamId   string
+        SteamId2  string
+        Slot      string
+}
+
+var PaulingLock = new(sync.RWMutex)
+var Pauling *rpc.Client
+
+type Event map[string]interface{}
+
+func PaulingReconnect() <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.Lock()
+        defer PaulingLock.Unlock()
+        helpers.Logger.Debug("Reconnecting to Pauling on port %s", config.Constants.PaulingPort)
+        client, err := rpc.DialHTTP("tcp", "localhost:"+config.Constants.PaulingPort)
+        for err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Critical("%s", err.Error())
+                time.Sleep(1 * time.Second)
+                client, err = rpc.DialHTTP("tcp", "localhost:"+config.Constants.PaulingPort)
+        }</span>
+
+        <span class="cov0" title="0">Pauling = client
+        helpers.Logger.Debug("Connected!")</span>
+}
+
+func PaulingConnect() <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.Lock()
+        defer PaulingLock.Unlock()
+
+        helpers.Logger.Debug("Connecting to Pauling on port %s", config.Constants.PaulingPort)
+        client, err := rpc.DialHTTP("tcp", "localhost:"+config.Constants.PaulingPort)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Fatal(err)
+        }</span>
+
+        <span class="cov0" title="0">Pauling = client
+        helpers.Logger.Debug("Connected!")</span>
+}
+
+func AllowPlayer(lobbyId uint, steamId string, slot string) error <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.RLock()
+        defer PaulingLock.RUnlock()
+
+        return Pauling.Call("Pauling.AllowPlayer", &amp;Args{Id: lobbyId, SteamId: steamId, Slot: slot}, &amp;Args{})</span>
+}
+
+func DisallowPlayer(lobbyId uint, steamId string) error <span class="cov8" title="1">{
+        if config.Constants.ServerMockUp </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.RLock()
+        defer PaulingLock.RUnlock()
+
+        return Pauling.Call("Pauling.DisallowPlayer", &amp;Args{Id: lobbyId, SteamId: steamId}, &amp;Args{})</span>
+}
+
+func SetupServer(lobbyId uint, info ServerRecord, lobbyType LobbyType, league string,
+        whitelist int, mapName string) error <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.RLock()
+        defer PaulingLock.RUnlock()
+
+        args := &amp;Args{
+                Id:        lobbyId,
+                Info:      info,
+                Type:      lobbyType,
+                League:    league,
+                Whitelist: whitelist,
+                Map:       mapName}
+        return Pauling.Call("Pauling.SetupServer", args, &amp;Args{})</span>
+}
+
+func ReExecConfig(lobbyId uint) error <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">return Pauling.Call("Pauling.ReExecConfig", &amp;Args{Id: lobbyId}, &amp;Args{})</span>
+}
+
+func VerifyInfo(info ServerRecord) error <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.RLock()
+        defer PaulingLock.RUnlock()
+
+        return Pauling.Call("Pauling.VerifyInfo", &amp;info, &amp;Args{})</span>
+}
+
+func IsPlayerInServer(steamid string) (reply bool) <span class="cov0" title="0">{
+        if config.Constants.ServerMockUp </span><span class="cov0" title="0">{
+                return false
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.RLock()
+        defer PaulingLock.RUnlock()
+
+        args := &amp;Args{SteamId: steamid}
+        Pauling.Call("Pauling.IsPlayerInServer", &amp;args, &amp;reply)
+
+        return</span>
+}
+
+func End(lobbyId uint) <span class="cov8" title="1">{
+        if config.Constants.ServerMockUp </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">PaulingLock.RLock()
+        defer PaulingLock.RUnlock()
+
+        Pauling.Call("Pauling.End", &amp;Args{Id: lobbyId}, &amp;Args{})</span>
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package models
+
+import (
+        "net/rpc"
+        "strings"
+        "sync"
+        "time"
+
+        "github.com/TF2Stadium/Helen/config"
+        "github.com/TF2Stadium/Helen/controllers/broadcaster"
+        db "github.com/TF2Stadium/Helen/database"
+        "github.com/TF2Stadium/Helen/helpers"
+        "github.com/TF2Stadium/fumble/mumble"
+)
+
+var Fumble *rpc.Client
+
+var FumbleLobbiesLock = new(sync.RWMutex)
+var FumbleLobbies = make(map[uint]*mumble.Lobby)
+
+func FumbleConnect() <span class="cov0" title="0">{
+        if config.Constants.FumblePort == "" </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">helpers.Logger.Debug("Connecting to Fumble on port %s", config.Constants.FumblePort)
+        client, err := rpc.DialHTTP("tcp", "localhost:"+config.Constants.FumblePort)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Fatal(err)
+        }</span>
+
+        <span class="cov0" title="0">Fumble = client
+        helpers.Logger.Debug("Connected!")</span>
+}
+
+func FumbleReconnect() <span class="cov0" title="0">{
+        if config.Constants.FumblePort == "" </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">helpers.Logger.Debug("Reconnecting to Fumble on port %s", config.Constants.FumblePort)
+        client, err := rpc.DialHTTP("tcp", "localhost:"+config.Constants.FumblePort)
+
+        for err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Critical("%s", err.Error())
+                time.Sleep(1 * time.Second)
+                client, err = rpc.DialHTTP("tcp", "localhost:"+config.Constants.FumblePort)
+        }</span>
+
+        <span class="cov0" title="0">Fumble = client
+        helpers.Logger.Debug("Connected!")</span>
+}
+
+func FumbleLobbyCreated(lob *Lobby) error <span class="cov0" title="0">{
+        if Fumble == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">newLobby := mumble.NewLobby()
+        newLobby.ID = int(lob.ID)
+
+        lobby := new(mumble.Lobby)
+
+        err := Fumble.Call("Fumble.CreateLobby", &amp;newLobby, &amp;lobby)
+
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Warning(err.Error())
+                return err
+        }</span>
+        <span class="cov0" title="0">FumbleLobbiesLock.Lock()
+        defer FumbleLobbiesLock.Unlock()
+        FumbleLobbies[lob.ID] = lobby
+
+        return nil</span>
+}
+
+func FumbleAllowPlayer(lobbyId uint, playerName string, playerTeam string) error <span class="cov0" title="0">{
+        if Fumble == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">user := mumble.NewUser()
+        user.Name = playerName
+        user.Team = mumble.Team(playerTeam)
+
+        FumbleLobbiesLock.Lock()
+        defer FumbleLobbiesLock.Unlock()
+
+        reply := new(mumble.Lobby)
+
+        err := Fumble.Call("Fumble.AllowPlayer", &amp;mumble.LobbyArgs{user, FumbleLobbies[lobbyId]}, reply)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Warning(err.Error())
+        }</span>
+        <span class="cov0" title="0">FumbleLobbiesLock.Lock()
+        defer FumbleLobbiesLock.Unlock()
+        FumbleLobbies[lobbyId] = reply
+        return nil</span>
+}
+
+func FumbleLobbyStarted(lob_ *Lobby) <span class="cov0" title="0">{
+        if Fumble == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">var lob Lobby
+        db.DB.Preload("Slots").First(&amp;lob, lob_.ID)
+
+        for _, slot := range lob.Slots </span><span class="cov0" title="0">{
+                team, class, _ := LobbyGetSlotInfoString(lob.Type, slot.Slot)
+
+                var player Player
+                db.DB.First(&amp;player, slot.PlayerId)
+
+                if _, ok := broadcaster.GetSocket(player.SteamId); ok </span><span class="cov0" title="0">{
+                        /*var userIp string
+                        if userIpParts := strings.Split(so.Request().RemoteAddr, ":"); len(userIpParts) == 2 {
+                                userIp = userIpParts[0]
+                        } else {
+                                userIp = so.Request().RemoteAddr
+                        }*/
+                        FumbleAllowPlayer(lob.ID, strings.ToUpper(class)+" "+player.Name, strings.ToUpper(team))
+                }</span><span class="cov0" title="0"> else {
+                        helpers.Logger.Warning("Socket for player with steamid[%d] not found.", player.SteamId)
+                }</span>
+        }
+}
+
+func FumbleLobbyPlayerJoinedSub(lob *Lobby, player *Player, slot int) <span class="cov8" title="1">{
+        if Fumble == nil </span><span class="cov8" title="1">{
+                // TODO fix
+                return
+        }</span>
+
+        <span class="cov0" title="0">team, class, _ := LobbyGetSlotInfoString(lob.Type, slot)
+        FumbleAllowPlayer(lob.ID, strings.ToUpper(class)+" "+player.Name, strings.ToUpper(team))</span>
+}
+
+func FumbleLobbyPlayerJoined(lob *Lobby, player *Player, slot int) <span class="cov8" title="1">{
+        if Fumble == nil </span><span class="cov8" title="1">{
+                // TODO fix
+                return
+        }</span>
+
+        <span class="cov0" title="0">_, class, _ := LobbyGetSlotInfoString(lob.Type, slot)
+        FumbleAllowPlayer(lob.ID, strings.ToUpper(class)+" "+player.Name, "")</span>
+}
+
+func FumbleLobbyEnded(lob *Lobby) <span class="cov0" title="0">{
+        if Fumble == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">FumbleLobbiesLock.Lock()
+        defer FumbleLobbiesLock.Unlock()
+
+        err := Fumble.Call("Fumble.EndLobby", FumbleLobbies[lob.ID], nil)
+        if err != nil </span><span class="cov0" title="0">{
+                helpers.Logger.Warning(err.Error())
+        }</span>
+        <span class="cov0" title="0">delete(FumbleLobbies, lob.ID)</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package models
+
+import (
+        "time"
+
+        "github.com/TF2Stadium/Helen/controllers/broadcaster"
+        db "github.com/TF2Stadium/Helen/database"
+)
+
+type Substitute struct {
+        ID        uint      `gorm:"primary_key"json:"-"`
+        CreatedAt time.Time `json:"-"`
+
+        SteamID string `json:"-"`
+        Filled  bool   `json:"-"`
+
+        LobbyID uint   `json:"id"`
+        Format  string `json:"type"`
+        MapName string `json:"map"`
+        Region  string `json:"region"`
+        Mumble  bool   `json:"mumbleRequired"`
+
+        Team  string `json:"team"`
+        Class string `json:"class"`
+}
+
+func NewSub(lobbyid uint, steamid string) (*Substitute, error) <span class="cov8" title="1">{
+        player, err := GetPlayerBySteamId(steamid)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        //helpers.Logger.Debug("#%d: Reported player %s&lt;%s&gt;",
+        //        lobbyid, player.Name, player.SteamId)
+        <span class="cov8" title="1">lob, _ := GetLobbyById(lobbyid)
+        slot := &amp;LobbySlot{}
+
+        db.DB.Where("lobby_id = ? AND player_id = ?", lobbyid, player.ID).First(slot)
+
+        sub := &amp;Substitute{}
+
+        sub.LobbyID = lob.ID
+        sub.Format = FormatMap[lob.Type]
+        sub.SteamID = player.SteamId
+        sub.MapName = lob.MapName
+        sub.Region = lob.RegionName
+        sub.Mumble = lob.Mumble
+
+        sub.Team = slot.Team
+        sub.Class = slot.Class
+
+        return sub, nil</span>
+}
+
+func SubAndRemove(lobby *Lobby, player *Player) error <span class="cov0" title="0">{
+        sub, err := NewSub(lobby.ID, player.SteamId)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">db.DB.Save(sub)
+        if tperr := lobby.RemovePlayer(player); tperr != nil </span><span class="cov0" title="0">{
+                return tperr
+        }</span>
+        <span class="cov0" title="0">BroadcastSubList()
+
+        return nil</span>
+}
+
+func GetSubList() []*Substitute <span class="cov8" title="1">{
+        var allSubs []*Substitute
+        db.DB.Table("substitutes").Where("filled = ?", false).Find(&amp;allSubs)
+
+        return allSubs
+}</span>
+
+func BroadcastSubList() <span class="cov8" title="1">{
+        broadcaster.SendMessageToRoom("0_public", "subListData", GetSubList())
+}</span>
+
+func GetPlayerSubs(steamid string) ([]*Substitute, error) <span class="cov8" title="1">{
+        var subs []*Substitute
+
+        err := db.DB.Table("substitutes").Where("steam_id = ?", steamid).Find(&amp;subs).Error
+
+        return subs, err
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible = document.getElementById('file0');
+		files.addEventListener('change', onChange, false);
+		function onChange() {
+			visible.style.display = 'none';
+			visible = document.getElementById(files.value);
+			visible.style.display = 'block';
+			window.scrollTo(0, 0);
+		}
+	})();
+	</script>
+</html>
